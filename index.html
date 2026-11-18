@@ -2,548 +2,4055 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>LLM Pipeline Explorer</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- Three.js CDN (fallback handled later) -->
-<script src="https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Pipeline Explorer 2.0 | Interactive AI Architecture & Tokenizer Lab</title>
+<meta name="description" content="A modern, interactive educational platform to explore how Large Language Models work internally: Tokenization, Embeddings, 3D Vector Space, Self-Attention, and Transformer Architecture.">
+
+<!-- Three.js CDN and OrbitControls for 3D Embedding Galaxy (with built-in Canvas fallback) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
 <style>
-/* ──────────────────────────────────
-   Global layout & palette
-   ────────────────────────────────── */
-:root{
-  --bg:#080B12;
-  --surface:#101622;
-  --elev:#151D2B;
-  --border:#28303A;
-  --primary:#0FF;   /* electric blue */
-  --secondary:#9B5DE5; /* violet */
-  --highlight:#00F5FF;/* cyan */
-  --text:#E6E6E6;
-  --subtext:#A0A0A0;
-  --radius:6px;
-  --transition:0.2s ease;
-  --font-sans:'Inter','Helvetica','Arial',sans-serif;
+/* ─────────────────────────────────────────────────────────────
+   DESIGN TOKENS & MODERN DEVELOPER TOOL PALETTE
+   ───────────────────────────────────────────────────────────── */
+:root {
+  --bg-base: #090B10;
+  --bg-surface: #10141D;
+  --bg-elevated: #151A25;
+  --bg-hover: #1D2333;
+  --bg-active: #242D40;
+  
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-medium: rgba(255, 255, 255, 0.14);
+  --border-strong: rgba(255, 255, 255, 0.25);
+  
+  --accent-primary: #8B7CFF;     /* Violet/Purple Linear-style */
+  --accent-primary-glow: rgba(139, 124, 255, 0.25);
+  --accent-secondary: #36CFC9;   /* Cyan / Teal */
+  --accent-secondary-glow: rgba(54, 207, 201, 0.25);
+  --accent-highlight: #60A5FA;   /* Electric Blue */
+  --accent-warning: #F59E0B;     /* Amber */
+  --accent-danger: #F43F5E;      /* Rose */
+  --accent-success: #10B981;     /* Emerald */
+  
+  --text-primary: #F5F7FA;
+  --text-secondary: #929BAD;
+  --text-muted: #64748B;
+  
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
+  
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+  
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 20px var(--accent-primary-glow);
+  
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
-*{box-sizing:border-box;margin:0;padding:0;}
-html,body{height:100%;font-family:var(--font-sans);background:var(--bg);color:var(--text);}
-a{color:var(--primary);text-decoration:none;}
-button,select,input,textarea{font:inherit;}
-/* ──────────────────────────────────
-   Layout
-   ────────────────────────────────── */
-#app{display:grid;grid-template-columns:260px 1fr;height:100%;overflow:hidden;}
-#sidebar{
-  background:var(--surface);
-  border-right:1px solid var(--border);
-  display:flex;flex-direction:column;
+
+/* Light / High-Contrast Accent Overrides if needed */
+body.mode-beginner {
+  --mode-badge-color: #36CFC9;
 }
-#sidebar .logo{font-size:1.2rem;padding:1rem;color:var(--primary);text-align:center;}
-#sidebar nav{flex:1;overflow-y:auto;}
-#sidebar nav a{
-  display:block;padding:.9rem 1.2rem;
-  color:var(--subtext);
-  border-left:3px solid transparent;
-  transition:var(--transition);
+body.mode-engineer {
+  --mode-badge-color: #8B7CFF;
 }
-#sidebar nav a.active{
-  background:var(--elev);
-  color:var(--primary);
-  border-left-color:var(--primary);
+
+/* Reset & Box Sizing */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
-#sidebar nav a:hover{background:rgba(255,255,255,0.05);}
-#sidebar .footer{padding:.5rem 1rem;font-size:.85rem;color:var(--subtext);}
-#main{display:flex;flex-direction:column;}
-#topbar{
-  background:var(--surface);
-  border-bottom:1px solid var(--border);
-  padding:.6rem 1rem;
-  display:flex;align-items:center;justify-content:space-between;
+
+html, body {
+  height: 100%;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
 }
-#topbar .title{font-size:1.1rem;color:var(--primary);}
-#topbar .right{display:flex;gap:.5rem;align-items:center;}
-#topbar button{background:var(--elev);border:none;color:var(--text);
-  padding:.4rem .8rem;border-radius:var(--radius);
-  cursor:pointer;transition:var(--transition);}
-#topbar button:hover{background:var(--highlight);color:#000;}
-#content{flex:1;overflow:auto;padding:1.2rem;background:var(--bg);}
-section{display:none;}
-section.active{display:block;}
-/* ──────────────────────────────────
-   Cards & panels
-   ────────────────────────────────── */
-.card{
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
-  padding:1rem;
-  margin-bottom:1.2rem;
-  box-shadow:0 2px 4px rgba(0,0,0,0.2);
-  transition:var(--transition);
+
+a {
+  color: var(--accent-highlight);
+  text-decoration: none;
 }
-.card:hover{box-shadow:0 4px 8px rgba(0,0,0,0.4);}
-h2{margin-bottom:.6rem;color:var(--primary);}
-h3{margin:0.6rem 0;color:var(--secondary);}
-button{
-  background:var(--primary);
-  color:#000;
-  border:none;
-  padding:.5rem .9rem;
-  border-radius:var(--radius);
-  cursor:pointer;
-  transition:var(--transition);
+a:hover {
+  text-decoration: underline;
 }
-button:hover{background:var(--highlight);}
-textarea{
-  width:100%;height:120px;
-  background:var(--elev);
-  border:1px solid var(--border);
-  color:var(--text);
-  border-radius:var(--radius);
-  padding:.6rem;
-  resize:vertical;
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
-input[type=range]{width:100%;}
-.token{
-  display:inline-block;
-  background:#28303A;
-  color:#fff;
-  padding:.2rem .5rem;
-  margin:.2rem .2rem;
-  border-radius:3px;
-  cursor:pointer;
-  transition:var(--transition);
+::-webkit-scrollbar-track {
+  background: var(--bg-base);
 }
-.token:hover{background:var(--secondary);}
-/* Modal */
-#modal{position:fixed;top:0;left:0;width:100%;height:100%;
-  background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;}
-#modal .inner{
-  background:var(--elev);padding:1.5rem;border-radius:var(--radius);
-  max-width:400px;width:90%;color:var(--text);
+::-webkit-scrollbar-thumb {
+  background: var(--bg-hover);
+  border-radius: var(--radius-full);
 }
-#modal .close{background:none;border:none;color:var(--primary);float:right;font-size:1.2rem;cursor:pointer;}
-/* Three.js container */
-#embedCanvas{width:100%;height:400px;background:#000;}
-/* Responsive */
-@media (max-width:800px){
-  #app{grid-template-columns:1fr;}
-  #sidebar{position:fixed;left:-260px;top:0;bottom:0;width:260px;z-index:10;
-    transition:transform var(--transition);}
-  #sidebar.open{transform:translateX(260px);}
-  #topbar .menuBtn{display:block;background:none;color:var(--primary);font-size:1.4rem;}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }
-@media (min-width:801px){
-  #topbar .menuBtn{display:none;}
+
+/* ─────────────────────────────────────────────────────────────
+   LAYOUT: SIDEBAR, TOPBAR, CONTENT
+   ───────────────────────────────────────────────────────────── */
+#app {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+/* SIDEBAR */
+#sidebar {
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  user-select: none;
+  z-index: 50;
+  transition: transform var(--transition-normal);
+}
+
+.sidebar-header {
+  padding: 1.25rem 1.25rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.brand-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 15px var(--accent-primary-glow);
+}
+.brand-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke: #fff;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+}
+.brand-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.brand-badge {
+  font-size: 0.65rem;
+  background: rgba(139, 124, 255, 0.15);
+  color: var(--accent-primary);
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(139, 124, 255, 0.3);
+  font-weight: 600;
+}
+.brand-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* Quick Search Trigger */
+.sidebar-search-btn {
+  margin: 0.75rem 1rem 0.25rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: var(--transition-fast);
+}
+.sidebar-search-btn:hover {
+  border-color: var(--border-medium);
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+.kbd-shortcut {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  background: var(--bg-surface);
+  padding: 2px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+}
+
+/* Navigation items */
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-section-title {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  padding: 0.75rem 0.5rem 0.25rem;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  position: relative;
+}
+.nav-item:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+.nav-item.active {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+}
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent-primary);
+}
+.nav-item svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 2;
+  flex-shrink: 0;
+}
+.nav-item .nav-badge {
+  margin-left: auto;
+  font-size: 0.65rem;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: var(--bg-surface);
+}
+
+.progress-widget {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.75rem;
+}
+.progress-widget-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.35rem;
+}
+.progress-bar-bg {
+  height: 4px;
+  background: var(--bg-hover);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  width: 35%;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+  transition: width 0.4s ease;
+}
+
+.footer-links {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  padding-top: 0.25rem;
+}
+.footer-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  padding: 3px 6px;
+  border-radius: 4px;
+  transition: var(--transition-fast);
+}
+.footer-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+/* TOPBAR */
+#topbar {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  z-index: 40;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.menu-toggle-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.breadcrumbs .crumb-active {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Mode Switch Toggle Pill */
+.mode-toggle-pill {
+  display: flex;
+  align-items: center;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 2px;
+  cursor: pointer;
+}
+.mode-opt {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: var(--transition-fast);
+}
+.mode-opt.active {
+  background: var(--accent-primary);
+  color: #fff;
+  box-shadow: 0 0 10px var(--accent-primary-glow);
+}
+body.mode-beginner .mode-opt.active {
+  background: var(--accent-secondary);
+  color: #000;
+  box-shadow: 0 0 10px var(--accent-secondary-glow);
+}
+
+/* Action Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  border: 1px solid transparent;
+  user-select: none;
+}
+.btn-primary {
+  background: var(--accent-primary);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: #9D90FF;
+  box-shadow: 0 0 14px var(--accent-primary-glow);
+}
+.btn-secondary {
+  background: var(--bg-elevated);
+  border-color: var(--border-subtle);
+  color: var(--text-primary);
+}
+.btn-secondary:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-medium);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.btn-ghost:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+.btn-sm {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+}
+.btn-icon {
+  padding: 0.4rem;
+  border-radius: var(--radius-sm);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* MAIN CONTENT CONTAINER */
+#content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 1.5rem 2rem 3rem;
+  background: radial-gradient(circle at 80% 10%, rgba(139, 124, 255, 0.05) 0%, transparent 50%),
+              radial-gradient(circle at 10% 80%, rgba(54, 207, 201, 0.03) 0%, transparent 40%),
+              var(--bg-base);
+}
+
+.module-section {
+  display: none;
+  animation: fadeIn 0.25s ease-out;
+}
+.module-section.active {
+  display: block;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* MODULE HEADER HERO */
+.module-hero {
+  margin-bottom: 1.5rem;
+}
+.module-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent-primary);
+  background: rgba(139, 124, 255, 0.12);
+  border: 1px solid rgba(139, 124, 255, 0.25);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  margin-bottom: 0.5rem;
+}
+.module-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin-bottom: 0.35rem;
+}
+.module-desc {
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  max-width: 800px;
+}
+
+/* GRID & CARDS */
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+}
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.card:hover {
+  border-color: var(--border-medium);
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.card-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.card-title svg {
+  color: var(--accent-primary);
+  width: 17px;
+  height: 17px;
+}
+
+/* Stat Box */
+.stat-box {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+}
+.stat-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 0.2rem;
+}
+.stat-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+.stat-sub {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+/* Form Controls */
+textarea.input-area, input[type="text"].input-text {
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  padding: 0.75rem;
+  outline: none;
+  transition: border-color var(--transition-fast);
+  resize: vertical;
+}
+textarea.input-area:focus, input[type="text"].input-text:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+.slider-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.slider-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.slider-val {
+  font-family: var(--font-mono);
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 5px;
+  background: var(--bg-active);
+  border-radius: 4px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  cursor: pointer;
+  box-shadow: 0 0 8px var(--accent-primary-glow);
+  transition: transform 0.1s;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+/* Preset Pills */
+.preset-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+.preset-pill {
+  font-size: 0.75rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+.preset-pill:hover {
+  border-color: var(--border-medium);
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   MODULE 1: TOKENIZATION LAB
+   ───────────────────────────────────────────────────────────── */
+.tokens-display-box {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  min-height: 140px;
+  line-height: 2.2;
+  word-break: break-word;
+}
+.token-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 7px;
+  margin: 2px 3px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.1s, box-shadow 0.1s;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.token-chip:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  z-index: 10;
+  border-color: #fff;
+}
+.token-chip.selected {
+  outline: 2px solid var(--accent-primary);
+  box-shadow: 0 0 12px var(--accent-primary-glow);
+}
+.token-sub-id {
+  font-size: 0.65rem;
+  opacity: 0.7;
+  margin-left: 4px;
+}
+
+/* Strategy Comparison Cards */
+.comparison-strat-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 90px;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.comparison-strat-row:last-child {
+  border-bottom: none;
+}
+.strat-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.strat-tokens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   MODULE 2: EMBEDDING GALAXY (3D / Canvas)
+   ───────────────────────────────────────────────────────────── */
+.galaxy-container {
+  position: relative;
+  width: 100%;
+  height: 520px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #030408;
+  border: 1px solid var(--border-subtle);
+}
+#three-canvas, #fallback-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.galaxy-overlay-controls {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 10;
+}
+.galaxy-search-bar {
+  display: flex;
+  align-items: center;
+  background: rgba(16, 20, 29, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.6rem;
+  width: 220px;
+}
+.galaxy-search-bar input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  width: 100%;
+}
+.galaxy-cluster-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 380px;
+}
+.cluster-pill {
+  font-size: 0.7rem;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(16, 20, 29, 0.85);
+  backdrop-filter: blur(8px);
+  color: var(--text-secondary);
+}
+.cluster-pill.active {
+  border-color: currentColor;
+  color: #fff;
+}
+.cluster-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.galaxy-sidebar-inspector {
+  position: absolute;
+  right: 1rem;
+  top: 1rem;
+  bottom: 1rem;
+  width: 280px;
+  background: rgba(16, 20, 29, 0.88);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  overflow-y: auto;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   MODULE 3: VECTOR SPACE EXPLORER
+   ───────────────────────────────────────────────────────────── */
+.vector-plane-box {
+  width: 100%;
+  height: 380px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  position: relative;
+}
+#vector-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.similarity-gauge-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.gauge-meter-bar {
+  width: 100%;
+  height: 12px;
+  background: linear-gradient(90deg, var(--accent-danger), var(--accent-warning) 50%, var(--accent-success));
+  border-radius: var(--radius-full);
+  position: relative;
+  margin: 1rem 0;
+}
+.gauge-pointer {
+  position: absolute;
+  top: -6px;
+  width: 4px;
+  height: 24px;
+  background: #fff;
+  border-radius: 2px;
+  transform: translateX(-50%);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   MODULE 4: ATTENTION MECHANISM
+   ───────────────────────────────────────────────────────────── */
+.attention-graph-box {
+  width: 100%;
+  height: 340px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  position: relative;
+  overflow: hidden;
+}
+#attention-graph-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.matrix-grid {
+  display: inline-grid;
+  gap: 2px;
+  background: var(--bg-elevated);
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  overflow-x: auto;
+}
+.matrix-cell {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.matrix-cell:hover {
+  transform: scale(1.15);
+  z-index: 5;
+  box-shadow: 0 0 8px rgba(255,255,255,0.4);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   MODULE 5: TRANSFORMER ARCHITECTURE
+   ───────────────────────────────────────────────────────────── */
+.transformer-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 720px;
+  margin: 0 auto;
+}
+.transformer-block-node {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.9rem 1.25rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+}
+.transformer-block-node:hover {
+  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px var(--accent-primary-glow);
+}
+.transformer-block-node.active-stage {
+  border-color: var(--accent-highlight);
+  background: var(--bg-hover);
+  box-shadow: 0 0 20px rgba(96, 165, 250, 0.3);
+}
+.transformer-block-node.active-stage::after {
+  content: 'ACTIVE STAGE';
+  position: absolute;
+  right: 12px;
+  top: -8px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: var(--accent-highlight);
+  color: #000;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+}
+.arrow-connector {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 1rem;
+  line-height: 0.8;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   MODULE 6: LLM PLAYGROUND
+   ───────────────────────────────────────────────────────────── */
+.generation-output-box {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  min-height: 180px;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  position: relative;
+}
+.token-streaming-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  background: var(--accent-primary);
+  margin-left: 2px;
+  vertical-align: middle;
+  animation: blink 0.8s infinite;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.top5-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+.top5-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+}
+.top5-token {
+  width: 70px;
+  font-family: var(--font-mono);
+  color: var(--accent-highlight);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.top5-bar-bg {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-hover);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+.top5-bar-fill {
+  height: 100%;
+  background: var(--accent-primary);
+  border-radius: var(--radius-full);
+  transition: width 0.2s;
+}
+.top5-prob {
+  width: 45px;
+  text-align: right;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   EDUCATIONAL / EXPLANATION ACCORDIONS
+   ───────────────────────────────────────────────────────────── */
+.learn-box {
+  background: linear-gradient(135deg, rgba(139, 124, 255, 0.06), rgba(54, 207, 201, 0.04));
+  border: 1px solid rgba(139, 124, 255, 0.2);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  margin-top: 1.25rem;
+}
+.learn-box-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  margin-bottom: 0.6rem;
+}
+.learn-badge {
+  font-size: 0.7rem;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+}
+body.mode-beginner .learn-badge {
+  background: rgba(54, 207, 201, 0.15);
+  color: var(--accent-secondary);
+}
+body.mode-engineer .learn-badge {
+  background: rgba(139, 124, 255, 0.15);
+  color: var(--accent-primary);
+}
+
+.mode-content-beginner, .mode-content-engineer {
+  display: none;
+}
+body.mode-beginner .mode-content-beginner {
+  display: block;
+}
+body.mode-engineer .mode-content-engineer {
+  display: block;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   MODALS, DRAWERS & OVERLAYS
+   ───────────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal-overlay.open {
+  display: flex;
+}
+.modal-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  width: 90%;
+  max-width: 580px;
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 1.5rem;
+  box-shadow: var(--shadow-lg);
+  animation: modalScale 0.2s ease-out;
+}
+@keyframes modalScale {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Toast notifications */
+#toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 200;
+  pointer-events: none;
+}
+.toast {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-medium);
+  color: var(--text-primary);
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  font-size: 0.82rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  pointer-events: auto;
+  animation: toastIn 0.25s ease-out;
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   RESPONSIVE DESIGN (TABLET & MOBILE)
+   ───────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  #app {
+    grid-template-columns: 1fr;
+  }
+  #sidebar {
+    position: fixed;
+    left: -280px;
+    top: 0;
+    bottom: 0;
+    width: 280px;
+    box-shadow: var(--shadow-lg);
+  }
+  #sidebar.open {
+    transform: translateX(280px);
+  }
+  .menu-toggle-btn {
+    display: inline-flex;
+  }
+  .grid-2, .grid-3, .grid-4 {
+    grid-template-columns: 1fr;
+  }
+  #content {
+    padding: 1rem;
+  }
+  .galaxy-sidebar-inspector {
+    position: static;
+    width: 100%;
+    margin-top: 1rem;
+  }
 }
 </style>
 </head>
-<body>
+<body class="mode-engineer">
+
 <div id="app">
-  <!-- Sidebar -->
+  <!-- ─────────────────────────────────────────────────────────────
+       LEFT SIDEBAR NAVIGATION
+       ───────────────────────────────────────────────────────────── -->
   <aside id="sidebar">
-    <div class="logo">🧠 LLM Pipeline Explorer</div>
-    <nav>
-      <a href="#" data-page="overview" class="active">Overview</a>
-      <a href="#" data-page="tokenizer">Tokenizer Lab</a>
-      <a href="#" data-page="embedding">Embedding Galaxy</a>
-      <a href="#" data-page="microscope">Pipeline Microscope</a>
-      <a href="#" data-page="experiments">Experiments</a>
+    <div class="sidebar-header">
+      <div class="brand" onclick="navigateTo('overview')">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="12" cy="12" r="3"></circle>
+            <circle cx="5" cy="6" r="2"></circle>
+            <circle cx="19" cy="6" r="2"></circle>
+            <circle cx="5" cy="18" r="2"></circle>
+            <circle cx="19" cy="18" r="2"></circle>
+            <path d="M7 7l3 3M17 7l-3 3M7 17l3-3M17 17l-3-3"></path>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <div class="brand-title">
+            Pipeline Explorer <span class="brand-badge">2.0 PRO</span>
+          </div>
+          <div class="brand-sub">Modern LLM Deep Dive</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Search Command Trigger -->
+    <button class="sidebar-search-btn" onclick="openSearchModal()">
+      <span>Quick search / jump...</span>
+      <span class="kbd-shortcut">⌘K</span>
+    </button>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-title">Core Pipeline</div>
+      
+      <div class="nav-item active" data-module="overview" onclick="navigateTo('overview')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        <span>Overview</span>
+        <span class="nav-badge">01</span>
+      </div>
+
+      <div class="nav-item" data-module="tokenization" onclick="navigateTo('tokenization')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7V4h16v3M9 20h6M12 4v16"></path></svg>
+        <span>Tokenization Lab</span>
+        <span class="nav-badge">02</span>
+      </div>
+
+      <div class="nav-item" data-module="embeddings" onclick="navigateTo('embeddings')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20M2 12h20"></path></svg>
+        <span>Embedding Galaxy</span>
+        <span class="nav-badge">3D</span>
+      </div>
+
+      <div class="nav-item" data-module="vectorspace" onclick="navigateTo('vectorspace')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m3 3 18 18M3 21 21 3M10 3h11v11M14 21H3V10"></path></svg>
+        <span>Vector Space</span>
+        <span class="nav-badge">04</span>
+      </div>
+
+      <div class="nav-item" data-module="attention" onclick="navigateTo('attention')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path></svg>
+        <span>Self-Attention</span>
+        <span class="nav-badge">05</span>
+      </div>
+
+      <div class="nav-item" data-module="transformer" onclick="navigateTo('transformer')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+        <span>Transformer Arch</span>
+        <span class="nav-badge">06</span>
+      </div>
+
+      <div class="nav-item" data-module="playground" onclick="navigateTo('playground')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        <span>LLM Playground</span>
+        <span class="nav-badge">07</span>
+      </div>
+
+      <div class="nav-section-title">Experiments & Learning</div>
+
+      <div class="nav-item" data-module="whatif" onclick="navigateTo('whatif')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"></path></svg>
+        <span>What-If Engine</span>
+        <span class="nav-badge">Diff</span>
+      </div>
+
+      <div class="nav-item" data-module="glossary" onclick="navigateTo('glossary')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15z"></path></svg>
+        <span>AI Glossary & Quiz</span>
+      </div>
+
+      <div class="nav-item" data-module="about" onclick="navigateTo('about')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg>
+        <span>Architecture & About</span>
+      </div>
     </nav>
-    <div class="footer">© 2026</div>
+
+    <!-- Sidebar Footer -->
+    <div class="sidebar-footer">
+      <div class="progress-widget">
+        <div class="progress-widget-header">
+          <span>Exploration Progress</span>
+          <span id="sidebar-progress-num">3 / 8</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="sidebar-progress-bar" style="width: 38%;"></div>
+        </div>
+      </div>
+
+      <div class="footer-links">
+        <button class="footer-btn" onclick="openDocModal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          Docs
+        </button>
+        <a class="footer-btn" href="https://github.com/kushal037101/LLM-Pipeline-Explorer" target="_blank" rel="noopener">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+          GitHub
+        </a>
+      </div>
+    </div>
   </aside>
 
-  <!-- Main area -->
-  <main id="main">
+  <!-- ─────────────────────────────────────────────────────────────
+       TOPBAR
+       ───────────────────────────────────────────────────────────── -->
+  <div style="display: flex; flex-direction: column; height: 100vh; overflow: hidden;">
     <header id="topbar">
-      <button class="menuBtn">☰</button>
-      <div class="title" id="pageTitle">Overview</div>
-      <div class="right">
-        <button id="modeToggle">Engineer Mode</button>
-        <button id="resetBtn">Reset</button>
+      <div class="topbar-left">
+        <button class="menu-toggle-btn" onclick="toggleSidebar()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+        <div class="breadcrumbs">
+          <span>Pipeline</span>
+          <span>/</span>
+          <span class="crumb-active" id="topbar-crumb">Overview</span>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <!-- Beginner vs Engineer Mode Switch -->
+        <div class="mode-toggle-pill" onclick="toggleExplanationMode()" title="Toggle Beginner (Intuitive) vs Engineer (Mathematical) Mode">
+          <div class="mode-opt" id="pill-beginner">💡 Beginner</div>
+          <div class="mode-opt active" id="pill-engineer">⚙️ Engineer</div>
+        </div>
+
+        <button class="btn btn-secondary btn-sm" onclick="resetAllState()" title="Reset current workspace inputs to defaults">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+          Reset
+        </button>
       </div>
     </header>
 
-    <section id="overview" class="active card">
-      <h2>Welcome to the LLM Pipeline Explorer</h2>
-      <p>Explore how text flows through a language‑model pipeline – from raw input to semantic insight.</p>
-      <div style="display:flex;gap:1rem;flex-wrap:wrap;">
-        <button data-nav="tokenizer">Tokenizer Lab</button>
-        <button data-nav="embedding">Embedding Galaxy</button>
-        <button data-nav="microscope">Pipeline Microscope</button>
-        <button data-nav="experiments">Experiments</button>
-      </div>
-    </section>
+    <!-- ─────────────────────────────────────────────────────────────
+         MAIN CONTENT AREA (MODULES)
+         ───────────────────────────────────────────────────────────── -->
+    <main id="content">
 
-    <!-- Tokenizer Lab -->
-    <section id="tokenizer" class="card">
-      <h2>Tokenizer Lab</h2>
-      <textarea id="tokenInput" placeholder="Enter text…">The quick brown fox jumps over the lazy dog.</textarea>
-      <div style="margin:0.5rem 0;">
-        <button id="sampleTextBtn">Sample Text</button>
-        <button id="clearTokenBtn">Clear</button>
-        <button id="tokenizeBtn">Tokenize</button>
-      </div>
-      <div id="tokenControls" style="margin:0.5rem 0;">
-        <label>Vocabulary size: <span id="vocabSizeVal">1000</span></label>
-        <input type="range" id="vocabSize" min="100" max="2000" step="100" value="1000">
-      </div>
-      <div id="tokenStats" style="margin:0.5rem 0;color:var(--subtext);"></div>
-      <div id="tokenDisplay"></div>
-    </section>
+      <!-- ========================================================
+           MODULE 0: OVERVIEW & PIPELINE FLOW
+           ======================================================== -->
+      <section id="mod-overview" class="module-section active">
+        <div class="module-hero">
+          <div class="module-tag">AI Laboratory Platform</div>
+          <h1 class="module-title">How Large Language Models Work Internally</h1>
+          <p class="module-desc">
+            Explore the end-to-end journey of language through an LLM: from raw text to subword tokens, continuous embedding vectors, multi-head attention graphs, and next-token probability distributions.
+          </p>
+        </div>
 
-    <!-- Embedding Galaxy -->
-    <section id="embedding" class="card">
-      <h2>Embedding Galaxy</h2>
-      <input type="text" id="embedSearch" placeholder="Search word…" style="width:100%;margin-bottom:.5rem;padding:.4rem;border-radius:var(--radius);border:1px solid var(--border);background:var(--elev);color:var(--text);">
-      <div id="embedCanvas"></div>
-    </section>
+        <!-- Interactive Pipeline Stage Rail -->
+        <div class="card" style="margin-bottom: 1.5rem; background: linear-gradient(135deg, rgba(21, 26, 37, 0.9), rgba(16, 20, 29, 0.9));">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+              Interactive Pipeline Rail — Click any stage to explore
+            </div>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">Sequential Forward Pass</span>
+          </div>
+          
+          <div style="display: flex; align-items: center; justify-content: space-between; overflow-x: auto; padding: 0.5rem 0; gap: 0.5rem;">
+            <div class="btn btn-secondary" onclick="navigateTo('tokenization')" style="flex-direction: column; padding: 0.75rem 1rem; min-width: 130px;">
+              <span style="font-size: 0.7rem; color: var(--accent-primary);">STAGE 01</span>
+              <strong style="font-size: 0.85rem;">Input & Tokens</strong>
+              <small style="color: var(--text-muted); font-size: 0.7rem;">BPE Subwords</small>
+            </div>
+            <span style="color: var(--text-muted);">→</span>
+            
+            <div class="btn btn-secondary" onclick="navigateTo('embeddings')" style="flex-direction: column; padding: 0.75rem 1rem; min-width: 130px;">
+              <span style="font-size: 0.7rem; color: var(--accent-secondary);">STAGE 02</span>
+              <strong style="font-size: 0.85rem;">Embeddings</strong>
+              <small style="color: var(--text-muted); font-size: 0.7rem;">3D Vector Galaxy</small>
+            </div>
+            <span style="color: var(--text-muted);">→</span>
 
-    <!-- Pipeline Microscope -->
-    <section id="microscope" class="card">
-      <h2>Pipeline Microscope</h2>
-      <textarea id="pipeInput" placeholder="Enter text…" style="height:80px;">Artificial intelligence revolutionizes many fields.</textarea>
-      <div style="margin:.5rem 0;">
-        <button id="runPipeBtn">Run Pipeline</button>
-        <button id="stepPrevBtn" disabled>Prev</button>
-        <button id="stepNextBtn" disabled>Next</button>
-        <button id="playPipeBtn" disabled>Play</button>
-        <button id="pausePipeBtn" disabled style="display:none;">Pause</button>
-        <button id="resetPipeBtn">Reset</button>
-      </div>
-      <div id="pipelineViz" style="display:flex;gap:1rem;align-items:center;overflow-x:auto;margin:.5rem 0;"></div>
-      <div id="stageInspector" class="card" style="display:none;"></div>
-    </section>
+            <div class="btn btn-secondary" onclick="navigateTo('vectorspace')" style="flex-direction: column; padding: 0.75rem 1rem; min-width: 130px;">
+              <span style="font-size: 0.7rem; color: var(--accent-highlight);">STAGE 03</span>
+              <strong style="font-size: 0.85rem;">Vector Space</strong>
+              <small style="color: var(--text-muted); font-size: 0.7rem;">Cosine Math</small>
+            </div>
+            <span style="color: var(--text-muted);">→</span>
 
-    <!-- Experiments -->
-    <section id="experiments" class="card">
-      <h2>Experiments</h2>
-      <div id="expList"></div>
-    </section>
-  </main>
+            <div class="btn btn-secondary" onclick="navigateTo('attention')" style="flex-direction: column; padding: 0.75rem 1rem; min-width: 130px;">
+              <span style="font-size: 0.7rem; color: var(--accent-warning);">STAGE 04</span>
+              <strong style="font-size: 0.85rem;">Self-Attention</strong>
+              <small style="color: var(--text-muted); font-size: 0.7rem;">Q, K, V Matrices</small>
+            </div>
+            <span style="color: var(--text-muted);">→</span>
+
+            <div class="btn btn-secondary" onclick="navigateTo('transformer')" style="flex-direction: column; padding: 0.75rem 1rem; min-width: 130px;">
+              <span style="font-size: 0.7rem; color: var(--accent-danger);">STAGE 05</span>
+              <strong style="font-size: 0.85rem;">Transformer</strong>
+              <small style="color: var(--text-muted); font-size: 0.7rem;">Decoder Stack</small>
+            </div>
+            <span style="color: var(--text-muted);">→</span>
+
+            <div class="btn btn-secondary" onclick="navigateTo('playground')" style="flex-direction: column; padding: 0.75rem 1rem; min-width: 130px;">
+              <span style="font-size: 0.7rem; color: var(--accent-success);">STAGE 06</span>
+              <strong style="font-size: 0.85rem;">Sampling & Gen</strong>
+              <small style="color: var(--text-muted); font-size: 0.7rem;">Next-Token Logits</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Metrics Overview -->
+        <div class="grid-4" style="margin-bottom: 1.5rem;">
+          <div class="stat-box">
+            <div class="stat-label">Tokenizer Vocabulary</div>
+            <div class="stat-value">50,257</div>
+            <div class="stat-sub">GPT-2 / BPE base tokens</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Embedding Dimensions</div>
+            <div class="stat-value">16 → 3D</div>
+            <div class="stat-sub">PCA Reduced Projection</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Attention Heads</div>
+            <div class="stat-value">4 Heads</div>
+            <div class="stat-sub">Syntactic, Coref, Semantic</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Decoder Layers</div>
+            <div class="stat-value">6 Blocks</div>
+            <div class="stat-sub">SwiGLU + RMSNorm Stack</div>
+          </div>
+        </div>
+
+        <!-- Interactive Guided Tour Cards -->
+        <h3 style="font-size: 1.1rem; margin-bottom: 1rem; color: var(--text-primary);">Featured Experiments & Labs</h3>
+        <div class="grid-3">
+          <div class="card" onclick="navigateTo('tokenization')" style="cursor: pointer;">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7V4h16v3M9 20h6M12 4v16"></path></svg>
+              Tokenizer Playground
+            </div>
+            <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0.5rem 0 1rem;">
+              Test BPE subword splitting, inspect unicode bytes, and discover why LLMs struggle with arithmetic or rare words.
+            </p>
+            <span class="btn btn-secondary btn-sm">Open Tokenizer Lab →</span>
+          </div>
+
+          <div class="card" onclick="navigateTo('embeddings')" style="cursor: pointer;">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20M2 12h20"></path></svg>
+              3D Embedding Galaxy
+            </div>
+            <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0.5rem 0 1rem;">
+              Explore semantic vectors in 3D space. Calculate analogical arithmetic like <em>King - Man + Woman = Queen</em>.
+            </p>
+            <span class="btn btn-secondary btn-sm">Launch 3D Galaxy →</span>
+          </div>
+
+          <div class="card" onclick="navigateTo('whatif')" style="cursor: pointer;">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"></path></svg>
+              What-If Comparison Engine
+            </div>
+            <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0.5rem 0 1rem;">
+              Compare two sentences side-by-side to visualize shared tokens, added concepts, and semantic distance shifts.
+            </p>
+            <span class="btn btn-secondary btn-sm">Run What-If Diff →</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================
+           MODULE 1: TOKENIZATION LAB
+           ======================================================== -->
+      <section id="mod-tokenization" class="module-section">
+        <div class="module-hero">
+          <div class="module-tag">Module 01</div>
+          <h1 class="module-title">Tokenization & Subword Vocabulary Lab</h1>
+          <p class="module-desc">
+            LLMs do not read words or letters; they process discrete integer tokens from a pre-trained subword vocabulary.
+          </p>
+        </div>
+
+        <div class="grid-2">
+          <!-- Left: Input Area & Controls -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                Input Text
+              </div>
+              <button class="btn btn-ghost btn-sm" onclick="clearTokenInput()">Clear</button>
+            </div>
+
+            <textarea id="token-input-text" class="input-area" rows="4" placeholder="Enter any text to inspect its token breakdown...">Artificial intelligence revolutionizes computational linguistics with subword tokenization.</textarea>
+
+            <div class="preset-pills">
+              <span class="preset-pill" onclick="setTokenPreset('The quick brown fox jumps over the lazy dog.')">🦊 Fox & Dog</span>
+              <span class="preset-pill" onclick="setTokenPreset('def calculate_loss(predictions, targets): return np.mean((predictions - targets)**2)')">💻 Python Code</span>
+              <span class="preset-pill" onclick="setTokenPreset('antidisestablishmentarianism and pseudopseudohypoparathyroidism')">💥 Rare Subwords</span>
+              <span class="preset-pill" onclick="setTokenPreset('1234 + 5678 = 6912')">🔢 Arithmetic</span>
+              <span class="preset-pill" onclick="setTokenPreset('Bonjour le monde! 这是一个大语言模型。 ¡Hola Mundo!')">🌐 Multilingual</span>
+            </div>
+
+            <div style="margin-top: 1.25rem;" class="slider-container">
+              <div class="slider-header">
+                <span>Vocabulary Compression Level</span>
+                <span class="slider-val" id="vocab-size-val">Vocab: 32,000 (Standard)</span>
+              </div>
+              <input type="range" id="vocab-slider" min="256" max="50000" step="500" value="32000" oninput="onVocabSliderChange(this.value)">
+              <small style="color: var(--text-muted); font-size: 0.72rem;">Lower vocabulary size forces words to shatter into smaller subwords.</small>
+            </div>
+
+            <div style="display: flex; gap: 0.5rem; margin-top: 1.25rem;">
+              <button class="btn btn-primary" onclick="runTokenizer()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                Tokenize Text
+              </button>
+              <button class="btn btn-secondary" onclick="simulateBpeMergeStep()">
+                Animate BPE Merge Step
+              </button>
+            </div>
+          </div>
+
+          <!-- Right: Live Token Stream & Inspector -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                Subword Token Chips (Click to Inspect)
+              </div>
+              <span style="font-size: 0.75rem; color: var(--text-muted);" id="token-count-pill">11 Tokens</span>
+            </div>
+
+            <div id="tokens-display-box" class="tokens-display-box">
+              <!-- Token chips rendered here -->
+            </div>
+
+            <!-- Token Statistics Bar -->
+            <div class="grid-4" style="margin-top: 1rem;">
+              <div class="stat-box" style="padding: 0.5rem;">
+                <div class="stat-label">Tokens</div>
+                <div class="stat-value" id="stat-token-count" style="font-size: 1.1rem;">11</div>
+              </div>
+              <div class="stat-box" style="padding: 0.5rem;">
+                <div class="stat-label">Characters</div>
+                <div class="stat-value" id="stat-char-count" style="font-size: 1.1rem;">78</div>
+              </div>
+              <div class="stat-box" style="padding: 0.5rem;">
+                <div class="stat-label">Chars/Token</div>
+                <div class="stat-value" id="stat-ratio" style="font-size: 1.1rem;">7.1</div>
+              </div>
+              <div class="stat-box" style="padding: 0.5rem;">
+                <div class="stat-label">Est. Cost</div>
+                <div class="stat-value" id="stat-cost" style="font-size: 1.1rem;">$0.00002</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Strategy Comparison Section -->
+        <div class="card" style="margin-top: 1.25rem;">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="18" cy="18" r="3"></circle><circle cx="6" cy="6" r="3"></circle><path d="M13 6h3a2 2 0 0 1 2 2v7M11 18H8a2 2 0 0 1-2-2V9"></path></svg>
+              Tokenizer Strategy Comparison
+            </div>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">How different tokenizers parse the same sentence</span>
+          </div>
+
+          <div id="strategy-comparison-container">
+            <!-- BPE, WordPiece, Character, Word-level comparison rows rendered here -->
+          </div>
+        </div>
+
+        <!-- Educational Insight Box -->
+        <div class="learn-box">
+          <div class="learn-box-header">
+            <span class="learn-badge">KEY CONCEPT</span>
+            <span>Why Tokenization Shapes LLM Intelligence</span>
+          </div>
+          
+          <div class="mode-content-beginner">
+            <p>
+              Imagine trying to read a book where every rare or compound word is sliced into familiar puzzle pieces. 
+              The word <em>"uncharacteristic"</em> becomes <strong>"un" + "character" + "istic"</strong>. 
+              Because the model recognizes each piece, it never encounters an "unknown word". 
+              However, numbers like <code>1234</code> might be split into <code>12</code> and <code>34</code>, which is why LLMs sometimes make basic math mistakes!
+            </p>
+          </div>
+
+          <div class="mode-content-engineer">
+            <p>
+              Byte-Pair Encoding (BPE) merges the most frequent pairs of adjacent bytes iteratively until the target vocabulary size $V$ is reached.
+              Tokens serve as row indices into the embedding lookup matrix $\mathbf{W}_e \in \mathbb{R}^{V \times d_{\text{model}}}$.
+              Smaller vocabularies increase sequence length $T$ (costing $\mathcal{O}(T^2)$ in attention memory), while excessively large vocabularies result in sparse, undertrained embedding vectors.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================
+           MODULE 2: EMBEDDING GALAXY (3D SEMANTIC SPACE)
+           ======================================================== -->
+      <section id="mod-embeddings" class="module-section">
+        <div class="module-hero">
+          <div class="module-tag">Module 02</div>
+          <h1 class="module-title">3D Embedding Galaxy</h1>
+          <p class="module-desc">
+            Embeddings map discrete tokens into dense, continuous high-dimensional vector space where geometric distance reflects semantic similarity.
+          </p>
+        </div>
+
+        <div class="galaxy-container">
+          <!-- Three.js WebGL canvas (or Fallback Canvas) -->
+          <canvas id="three-canvas"></canvas>
+
+          <!-- Galaxy Overlay Controls -->
+          <div class="galaxy-overlay-controls">
+            <div class="galaxy-search-bar">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="margin-right: 6px;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text" id="galaxy-search-input" placeholder="Search word in galaxy..." oninput="onGalaxySearch(this.value)">
+            </div>
+
+            <!-- Semantic Cluster Filter Pills -->
+            <div class="galaxy-cluster-pills" id="galaxy-cluster-pills">
+              <!-- Rendered via JS -->
+            </div>
+
+            <div style="display: flex; gap: 4px; margin-top: 4px;">
+              <button class="btn btn-secondary btn-sm" onclick="toggleGalaxyAutoRotate()" id="btn-autorotate">Pause Rotation</button>
+              <button class="btn btn-secondary btn-sm" onclick="resetGalaxyCamera()">Reset Camera</button>
+              <button class="btn btn-secondary btn-sm" onclick="toggleGalaxyLabels()" id="btn-labels">Toggle Labels</button>
+            </div>
+          </div>
+
+          <!-- Galaxy Inspector Drawer -->
+          <div class="galaxy-sidebar-inspector" id="galaxy-inspector">
+            <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--accent-secondary); font-weight: 700;">
+              Selected Concept
+            </div>
+            <h3 id="galaxy-sel-word" style="font-size: 1.3rem; color: #fff; margin: 0;">Select a point</h3>
+            <div style="font-size: 0.75rem; color: var(--text-muted);" id="galaxy-sel-cluster">Cluster: —</div>
+
+            <div class="stat-box" style="padding: 0.5rem;">
+              <div class="stat-label">3D Coordinates (PCA)</div>
+              <div class="stat-value" id="galaxy-sel-coords" style="font-size: 0.82rem; font-family: var(--font-mono); color: var(--accent-highlight);">
+                X: 0.00 | Y: 0.00 | Z: 0.00
+              </div>
+            </div>
+
+            <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); margin-top: 0.25rem;">
+              Nearest Semantic Neighbors (Cosine Sim)
+            </div>
+            <div id="galaxy-neighbors-list" style="display: flex; flex-direction: column; gap: 4px;">
+              <div style="font-size: 0.75rem; color: var(--text-muted);">Click any sphere in the galaxy to calculate nearest semantic neighbors.</div>
+            </div>
+
+            <div style="margin-top: auto; padding-top: 0.5rem; border-top: 1px solid var(--border-subtle);">
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 4px;">Add Custom Word to Galaxy:</div>
+              <div style="display: flex; gap: 4px;">
+                <input type="text" id="custom-word-input" class="input-text" placeholder="e.g. superhero" style="font-size: 0.75rem; padding: 4px 6px;">
+                <button class="btn btn-primary btn-sm" onclick="addCustomWordToGalaxy()">Plot</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Interactive Vector Analogies Playground -->
+        <div class="card" style="margin-top: 1.25rem;">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+              Semantic Analogy Arithmetic in Vector Space
+            </div>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">Famous Word2Vec vector relationships</span>
+          </div>
+
+          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="runAnalogyExperiment('King', 'Man', 'Woman', 'Queen')">
+              👑 King - Man + Woman = Queen
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="runAnalogyExperiment('Puppy', 'Dog', 'Cat', 'Kitten')">
+              🐶 Puppy - Dog + Cat = Kitten
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="runAnalogyExperiment('Paris', 'France', 'Japan', 'Tokyo')">
+              🗼 Paris - France + Japan = Tokyo
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="runAnalogyExperiment('Python', 'Programming', 'Food', 'Pizza')">
+              🍕 Python - Code + Food = Pizza
+            </button>
+          </div>
+
+          <div id="analogy-result-box" style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--text-secondary); background: var(--bg-elevated); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+            Click an analogy preset above to visualize the vector displacement and target projection in the 3D space.
+          </div>
+        </div>
+
+        <!-- Dimensionality Reduction Explanation -->
+        <div class="learn-box">
+          <div class="learn-box-header">
+            <span class="learn-badge">TECHNICAL NOTE</span>
+            <span>Dimensionality Reduction (High-Dim → 3D)</span>
+          </div>
+          <div class="mode-content-beginner">
+            <p>
+              Real AI embeddings have hundreds or thousands of dimensions (like 1,536 numbers per word!). 
+              Since human eyes can only see in 3 dimensions, we use a mathematical camera lens (PCA) to flatten the 16-dimensional semantic coordinates down to 3D, keeping similar words close together.
+            </p>
+          </div>
+          <div class="mode-content-engineer">
+            <p>
+              Given embedding matrix $\mathbf{X} \in \mathbb{R}^{N \times D}$, Principal Component Analysis computes the eigenvectors of the covariance matrix $\mathbf{C} = \frac{1}{N}\mathbf{X}^T\mathbf{X}$.
+              Projecting onto the top 3 eigenvectors $\mathbf{W}_3 \in \mathbb{R}^{D \times 3}$ yields $\mathbf{Y} = \mathbf{X}\mathbf{W}_3$, maximizing preserved variance while maintaining pairwise cosine distances $\frac{\mathbf{u}\cdot\mathbf{v}}{\|\mathbf{u}\|\|\mathbf{v}\|}$.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================
+           MODULE 3: VECTOR SPACE & COSINE SIMILARITY
+           ======================================================== -->
+      <section id="mod-vectorspace" class="module-section">
+        <div class="module-hero">
+          <div class="module-tag">Module 03</div>
+          <h1 class="module-title">Vector Space & Cosine Similarity Calculator</h1>
+          <p class="module-desc">
+            Interact directly with continuous vector vectors, drag arrowheads on a 2D coordinate plane, and watch cosine similarity and distance metrics calculate in real time.
+          </p>
+        </div>
+
+        <div class="grid-2">
+          <!-- Interactive 2D Vector Canvas -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v8M8 12h8"></path></svg>
+                Interactive Vector Plane (Drag Arrowheads)
+              </div>
+              <div style="display: flex; gap: 8px; font-size: 0.75rem;">
+                <span style="color: var(--accent-primary);">● Vector A</span>
+                <span style="color: var(--accent-secondary);">● Vector B</span>
+              </div>
+            </div>
+
+            <div class="vector-plane-box">
+              <canvas id="vector-canvas"></canvas>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; margin-top: 0.75rem;">
+              <button class="btn btn-secondary btn-sm" onclick="setPresetVectors(1, 0, 0, 1)">Orthogonal (90°)</button>
+              <button class="btn btn-secondary btn-sm" onclick="setPresetVectors(0.8, 0.6, 0.8, 0.6)">Collinear (0°)</button>
+              <button class="btn btn-secondary btn-sm" onclick="setPresetVectors(1, 0, -1, 0)">Opposite (180°)</button>
+              <button class="btn btn-secondary btn-sm" onclick="setPresetVectors(0.9, 0.3, 0.4, 0.8)">Acute (35°)</button>
+            </div>
+          </div>
+
+          <!-- Similarity & Distance Metrics Breakdown -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+                Live Similarity Calculator
+              </div>
+              <span id="metric-relationship-badge" class="brand-badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-success); border-color: rgba(16, 185, 129, 0.3);">
+                Highly Related
+              </span>
+            </div>
+
+            <!-- Visual Similarity Gauge -->
+            <div class="similarity-gauge-wrap">
+              <div style="display: flex; justify-content: space-between; width: 100%; font-size: 0.75rem; color: var(--text-muted);">
+                <span>-1.0 (Opposite)</span>
+                <span>0.0 (Orthogonal)</span>
+                <span>+1.0 (Identical)</span>
+              </div>
+              <div class="gauge-meter-bar">
+                <div class="gauge-pointer" id="gauge-pointer-needle" style="left: 85%;"></div>
+              </div>
+              <div style="font-size: 1.8rem; font-weight: 700; font-family: var(--font-mono); color: var(--accent-primary);" id="metric-cosine-val">
+                +0.852
+              </div>
+              <div style="font-size: 0.8rem; color: var(--text-secondary);" id="metric-angle-val">
+                Angle: θ = 31.6°
+              </div>
+            </div>
+
+            <!-- Mathematical Breakdown Grid -->
+            <div class="grid-2" style="margin-top: 0.5rem;">
+              <div class="stat-box">
+                <div class="stat-label">Dot Product (A · B)</div>
+                <div class="stat-value" id="metric-dot-val" style="font-size: 1.1rem;">0.85</div>
+                <div class="stat-sub">A_x B_x + A_y B_y</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-label">Euclidean Distance (L2)</div>
+                <div class="stat-value" id="metric-l2-val" style="font-size: 1.1rem;">0.54</div>
+                <div class="stat-sub">√((A_x-B_x)² + (A_y-B_y)²)</div>
+              </div>
+            </div>
+
+            <!-- Vector Coordinates Input -->
+            <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border-subtle);">
+              <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem;">Adjust Coordinates Manually:</div>
+              <div class="grid-2" style="gap: 0.5rem; font-family: var(--font-mono); font-size: 0.8rem;">
+                <div>Vector A: [<span id="coord-a-text">0.80, 0.60</span>]</div>
+                <div>Vector B: [<span id="coord-b-text">0.60, 0.80</span>]</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="learn-box">
+          <div class="learn-box-header">
+            <span class="learn-badge">CORE MATH</span>
+            <span>Why Cosine Similarity Beats Euclidean Distance in AI</span>
+          </div>
+          <div class="mode-content-beginner">
+            <p>
+              Imagine two arrows pointing from the center of a clock. If both point toward 12 o'clock, their meanings match, even if one arrow is much longer than the other. 
+              Cosine similarity measures the <em>angle</em> between ideas rather than their magnitude, ensuring a short sentence and a long paragraph about the same topic are recognized as matching.
+            </p>
+          </div>
+          <div class="mode-content-engineer">
+            <p>
+              Cosine similarity is defined as $\text{sim}(\mathbf{u}, \mathbf{v}) = \frac{\mathbf{u} \cdot \mathbf{v}}{\|\mathbf{u}\|_2 \|\mathbf{v}\|_2} = \cos(\theta)$.
+              Because it normalizes vector lengths to the unit sphere ($\mathbb{S}^{D-1}$), it remains invariant to document length or token frequency scaling, making it ideal for high-dimensional vector search.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================
+           MODULE 4: SELF-ATTENTION MECHANISM
+           ======================================================== -->
+      <section id="mod-attention" class="module-section">
+        <div class="module-hero">
+          <div class="module-tag">Module 04</div>
+          <h1 class="module-title">Multi-Head Self-Attention Visualizer</h1>
+          <p class="module-desc">
+            Attention is how tokens communicate with each other. It allows words like "it" to dynamically pull contextual meaning from earlier words like "the cat".
+          </p>
+        </div>
+
+        <div class="card" style="margin-bottom: 1.25rem;">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path></svg>
+              Select Attention Head & Sample Sentence
+            </div>
+            
+            <!-- Head Selector Tabs -->
+            <div style="display: flex; gap: 4px;">
+              <button class="btn btn-secondary btn-sm active" id="btn-head-1" onclick="selectAttentionHead(1)">Head 1: Syntactic</button>
+              <button class="btn btn-secondary btn-sm" id="btn-head-2" onclick="selectAttentionHead(2)">Head 2: Coreference</button>
+              <button class="btn btn-secondary btn-sm" id="btn-head-3" onclick="selectAttentionHead(3)">Head 3: Semantic</button>
+              <button class="btn btn-secondary btn-sm" id="btn-head-4" onclick="selectAttentionHead(4)">Head 4: Diffuse</button>
+            </div>
+          </div>
+
+          <div class="preset-pills" style="margin-bottom: 0.5rem;">
+            <span class="preset-pill" onclick="setAttentionSentence('The cat sat on the mat because it was tired.')">🐱 Classic Coreference ("it" → "cat")</span>
+            <span class="preset-pill" onclick="setAttentionSentence('The bank of the river had a financial bank nearby.')">🏦 Polysemy ("bank" meaning)</span>
+            <span class="preset-pill" onclick="setAttentionSentence('She poured water from the pitcher into the glass until it was full.')">🥛 Winograd Schema ("it" → "glass")</span>
+          </div>
+
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="text" id="attention-sentence-input" class="input-text" value="The cat sat on the mat because it was tired." style="flex: 1;">
+            <button class="btn btn-primary" onclick="updateAttentionGraph()">Analyze Attention</button>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <!-- Left: Interactive Attention Graph -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="6" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"></path></svg>
+                Token-to-Token Attention Arcs
+              </div>
+              <span style="font-size: 0.72rem; color: var(--text-muted);">Click any token below to highlight its weights</span>
+            </div>
+
+            <div class="attention-graph-box">
+              <canvas id="attention-graph-canvas"></canvas>
+            </div>
+
+            <div id="attention-tokens-bar" style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 0.75rem;">
+              <!-- Token chips rendered here -->
+            </div>
+          </div>
+
+          <!-- Right: Attention Weight Heatmap Matrix -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>
+                Attention Heatmap Matrix ($N \times N$)
+              </div>
+              <span style="font-size: 0.72rem; color: var(--text-muted);">Row sums = 1.0 (Softmax)</span>
+            </div>
+
+            <div style="overflow-x: auto; max-height: 380px;" id="attention-matrix-wrapper">
+              <!-- Grid rendered here -->
+            </div>
+
+            <div id="attention-cell-detail" style="margin-top: 0.75rem; font-size: 0.8rem; color: var(--text-secondary); background: var(--bg-elevated); padding: 0.6rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+              Hover or click any cell in the heatmap matrix to inspect Query-Key compatibility and attention weight $w_{ij}$.
+            </div>
+          </div>
+        </div>
+
+        <!-- Query, Key, Value Step-by-Step Breakdown -->
+        <div class="learn-box">
+          <div class="learn-box-header">
+            <span class="learn-badge">ALGORITHM DEEP-DIVE</span>
+            <span>The Q, K, V Attention Formulation</span>
+          </div>
+          <div class="mode-content-beginner">
+            <p>
+              Think of Self-Attention like a search engine:
+              <br>• <strong>Query ($Q$)</strong>: The question a word is asking (e.g. <em>"it"</em> asks: <em>"Who am I referring to?"</em>)
+              <br>• <strong>Key ($K$)</strong>: The tag or label every word advertises (e.g. <em>"cat"</em> says: <em>"I am a furry animal"</em>, <em>"tired"</em> says: <em>"I am a feeling"</em>)
+              <br>• <strong>Value ($V$)</strong>: The actual detailed meaning transferred when a Query matches a Key!
+            </p>
+          </div>
+          <div class="mode-content-engineer">
+            <p>
+              Given input representations $\mathbf{X} \in \mathbb{R}^{T \times d}$, projection matrices compute $\mathbf{Q} = \mathbf{X}\mathbf{W}_Q$, $\mathbf{K} = \mathbf{X}\mathbf{W}_K$, $\mathbf{V} = \mathbf{X}\mathbf{W}_V$.
+              The Scaled Dot-Product Attention equation is:
+              $$\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax}\left(\frac{\mathbf{Q}\mathbf{K}^T}{\sqrt{d_k}} + \mathbf{M}\right)\mathbf{V}$$
+              Where $\mathbf{M}$ is the optional causal autoregressive mask, and scaling by $\frac{1}{\sqrt{d_k}}$ prevents vanishing gradients in the softmax function for large dimensions $d_k$.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================
+           MODULE 5: TRANSFORMER ARCHITECTURE
+           ======================================================== -->
+      <section id="mod-transformer" class="module-section">
+        <div class="module-hero">
+          <div class="module-tag">Module 05</div>
+          <h1 class="module-title">Modern Transformer Architecture</h1>
+          <p class="module-desc">
+            An interactive blueprint of a modern Decoder-only Transformer stack (LLaMA & GPT-4 style). Step through the forward pass layer-by-layer.
+          </p>
+        </div>
+
+        <div class="grid-2">
+          <!-- Left: Interactive Transformer Blueprint -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                Decoder-Only Transformer Block
+              </div>
+              <div style="display: flex; gap: 4px;">
+                <button class="btn btn-primary btn-sm" onclick="startTransformerForwardPass()">
+                  ▶ Simulate Forward Pass
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="resetTransformerSimulation()">Reset</button>
+              </div>
+            </div>
+
+            <div class="transformer-flow" id="transformer-flow-nodes">
+              <!-- Stage 1 -->
+              <div class="transformer-block-node" data-stage="1" onclick="inspectTransformerNode(1)">
+                <div>
+                  <div style="font-size: 0.72rem; color: var(--accent-primary);">STAGE 01</div>
+                  <strong>Input Tokens & Lookup</strong>
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">Text → Token IDs $\rightarrow [B, T]$</div>
+                </div>
+                <span class="brand-badge">Discrete IDs</span>
+              </div>
+              <div class="arrow-connector">↓</div>
+
+              <!-- Stage 2 -->
+              <div class="transformer-block-node" data-stage="2" onclick="inspectTransformerNode(2)">
+                <div>
+                  <div style="font-size: 0.72rem; color: var(--accent-secondary);">STAGE 02</div>
+                  <strong>Token & Rotary Positional Embedding (RoPE)</strong>
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">$\mathbf{X} = \mathbf{W}_e[\text{ids}] + \text{RoPE}(t) \rightarrow [B, T, d]$</div>
+                </div>
+                <span class="brand-badge">Dense Tensor</span>
+              </div>
+              <div class="arrow-connector">↓</div>
+
+              <!-- Stage 3 -->
+              <div class="transformer-block-node" data-stage="3" onclick="inspectTransformerNode(3)">
+                <div>
+                  <div style="font-size: 0.72rem; color: var(--accent-highlight);">STAGE 03</div>
+                  <strong>RMSNorm (Pre-LayerNorm)</strong>
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">Stabilizes variance: $\text{RMSNorm}(x) = \frac{x}{\text{RMS}(x)}\odot\gamma$</div>
+                </div>
+                <span class="brand-badge">Norm</span>
+              </div>
+              <div class="arrow-connector">↓</div>
+
+              <!-- Stage 4 -->
+              <div class="transformer-block-node" data-stage="4" onclick="inspectTransformerNode(4)">
+                <div>
+                  <div style="font-size: 0.72rem; color: var(--accent-warning);">STAGE 04</div>
+                  <strong>Multi-Head Self-Attention + Residual Add</strong>
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">$x = x + \text{Attention}(\text{RMSNorm}(x))$</div>
+                </div>
+                <span class="brand-badge">Residual</span>
+              </div>
+              <div class="arrow-connector">↓</div>
+
+              <!-- Stage 5 -->
+              <div class="transformer-block-node" data-stage="5" onclick="inspectTransformerNode(5)">
+                <div>
+                  <div style="font-size: 0.72rem; color: var(--accent-secondary);">STAGE 05</div>
+                  <strong>Feed-Forward Network (SwiGLU MLP) + Residual</strong>
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">$x = x + \text{SwiGLU}(\text{RMSNorm}(x))$ ($d \rightarrow 4d \rightarrow d$)</div>
+                </div>
+                <span class="brand-badge">FFN MLP</span>
+              </div>
+              <div class="arrow-connector">↓</div>
+
+              <!-- Stage 6 -->
+              <div class="transformer-block-node" data-stage="6" onclick="inspectTransformerNode(6)">
+                <div>
+                  <div style="font-size: 0.72rem; color: var(--accent-danger);">STAGE 06</div>
+                  <strong>Final RMSNorm & LM Unembedding Head</strong>
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">Logits $\mathbf{z} = \text{RMSNorm}(x)\mathbf{W}_u \rightarrow [B, T, V]$</div>
+                </div>
+                <span class="brand-badge">Logits</span>
+              </div>
+              <div class="arrow-connector">↓</div>
+
+              <!-- Stage 7 -->
+              <div class="transformer-block-node" data-stage="7" onclick="inspectTransformerNode(7)">
+                <div>
+                  <div style="font-size: 0.72rem; color: var(--accent-success);">STAGE 07</div>
+                  <strong>Softmax & Sampling (Next-Token Prediction)</strong>
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">Probabilities $p = \text{softmax}(\mathbf{z} / \tau) \rightarrow$ Sample Next Token</div>
+                </div>
+                <span class="brand-badge">Next Token</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Component Inspector Panel -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                Component Deep-Dive Inspector
+              </div>
+              <span id="trans-inspector-stage-tag" class="brand-badge">STAGE 04</span>
+            </div>
+
+            <div id="trans-inspector-content">
+              <h3 id="trans-comp-title" style="font-size: 1.2rem; color: var(--text-primary); margin-bottom: 0.5rem;">
+                Multi-Head Self-Attention
+              </h3>
+              
+              <div class="stat-box" style="margin-bottom: 0.75rem;">
+                <div class="stat-label">Tensor Shape Flow</div>
+                <div class="stat-value" id="trans-tensor-shape" style="font-size: 0.9rem; font-family: var(--font-mono); color: var(--accent-highlight);">
+                  [Batch=1, SeqLen=11, Dim=4096] → [1, 11, 4096]
+                </div>
+              </div>
+
+              <div style="margin-bottom: 0.75rem;">
+                <strong style="font-size: 0.8rem; color: var(--text-secondary);">Mathematical Formulation:</strong>
+                <div id="trans-comp-formula" style="background: var(--bg-elevated); padding: 0.6rem; border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: 0.8rem; margin-top: 4px; border: 1px solid var(--border-subtle); color: var(--accent-primary);">
+                  x_{out} = x + \text{Concat}(\text{head}_1, \dots, \text{head}_h)\mathbf{W}_O
+                </div>
+              </div>
+
+              <div>
+                <strong style="font-size: 0.8rem; color: var(--text-secondary);">Architectural Role:</strong>
+                <p id="trans-comp-desc" style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px; line-height: 1.6;">
+                  Allows tokens to exchange information across the sequence. Each head attends to different relationships (grammar, coreference, factual ties). The residual skip-connection allows gradients to bypass the non-linear attention calculation without vanishing.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="learn-box">
+          <div class="learn-box-header">
+            <span class="learn-badge">ARCHITECTURE</span>
+            <span>Why Modern LLMs Use Decoder-Only Architectures</span>
+          </div>
+          <div class="mode-content-beginner">
+            <p>
+              Older transformers had both an "Encoder" (reader) and a "Decoder" (writer). Modern models like GPT-4, LLaMA, and Claude use only Decoders because predicting the next token autoregressively turns out to be the most efficient, scalable way to master grammar, logic, and reasoning simultaneously.
+            </p>
+          </div>
+          <div class="mode-content-engineer">
+            <p>
+              Decoder-only models enforce a strictly lower-triangular causal attention mask ($\mathbf{M}_{ij} = -\infty$ for $j > i$).
+              This guarantees that during pre-training, every position $t$ predicts token $t+1$ simultaneously without leaking future information, achieving optimal training throughput on parallel GPU tensor cores.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================
+           MODULE 6: LLM PLAYGROUND
+           ======================================================== -->
+      <section id="mod-playground" class="module-section">
+        <div class="module-hero">
+          <div class="module-tag">Module 06</div>
+          <h1 class="module-title">LLM Inference Simulator & Sampling Playground</h1>
+          <p class="module-desc">
+            Experiment with Temperature, Top-P (Nucleus Sampling), and Top-K controls. Watch candidate token probability distributions unfold live.
+          </p>
+        </div>
+
+        <div class="grid-2">
+          <!-- Left: Prompt & Parameters -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                Prompt & Sampling Parameters
+              </div>
+              <button class="btn btn-ghost btn-sm" onclick="clearPlaygroundPrompt()">Clear</button>
+            </div>
+
+            <textarea id="playground-prompt" class="input-area" rows="4" placeholder="Enter a prompt to simulate completion...">The future of artificial intelligence in scientific discovery will</textarea>
+
+            <div class="preset-pills">
+              <span class="preset-pill" onclick="setPlaygroundPreset('The future of artificial intelligence in scientific discovery will')">🔬 Science Discovery</span>
+              <span class="preset-pill" onclick="setPlaygroundPreset('Write a python function to compute fibonacci numbers:')">💻 Code Prompt</span>
+              <span class="preset-pill" onclick="setPlaygroundPreset('Once upon a time in a digital kingdom between the wires,')">📖 Creative Story</span>
+              <span class="preset-pill" onclick="setPlaygroundPreset('Explain quantum computing to a five year old child:')">🧒 Explainer</span>
+            </div>
+
+            <div style="margin-top: 1.25rem;" class="slider-container">
+              <div class="slider-header">
+                <span>Temperature ($\tau$)</span>
+                <span class="slider-val" id="temp-val">0.70 (Balanced)</span>
+              </div>
+              <input type="range" id="temp-slider" min="0" max="2" step="0.05" value="0.7" oninput="onTempSliderChange(this.value)">
+              <small style="color: var(--text-muted); font-size: 0.72rem;">0.0 = Deterministic/Greedy | 1.0+ = High Creativity & Variance</small>
+            </div>
+
+            <div style="margin-top: 1rem;" class="slider-container">
+              <div class="slider-header">
+                <span>Top-P (Nucleus Sampling)</span>
+                <span class="slider-val" id="topp-val">0.90</span>
+              </div>
+              <input type="range" id="topp-slider" min="0.1" max="1" step="0.05" value="0.9" oninput="onTopPSliderChange(this.value)">
+              <small style="color: var(--text-muted); font-size: 0.72rem;">Restricts sampling pool to tokens whose cumulative probability exceeds P.</small>
+            </div>
+
+            <div style="display: flex; gap: 0.5rem; margin-top: 1.25rem;">
+              <button class="btn btn-primary" id="btn-generate-tokens" onclick="startPlaygroundGeneration()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                Generate Completion
+              </button>
+              <button class="btn btn-secondary" onclick="stopPlaygroundGeneration()">Stop</button>
+            </div>
+          </div>
+
+          <!-- Right: Generation Stream & Real-time Candidate Distribution -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                Generated Output Stream
+              </div>
+              <span style="font-size: 0.75rem; color: var(--accent-primary);" id="play-gen-status">Idle</span>
+            </div>
+
+            <div class="generation-output-box" id="playground-output-box">
+              <span id="play-prompt-echo" style="color: var(--text-muted);">The future of artificial intelligence in scientific discovery will</span>
+              <span id="play-generated-text" style="color: #fff; font-weight: 500;"></span>
+              <span class="token-streaming-cursor" id="play-cursor" style="display: none;"></span>
+            </div>
+
+            <!-- Top-5 Candidate Distribution At Current Step -->
+            <div style="margin-top: 1rem;">
+              <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">
+                <strong>Top Candidate Tokens for Next Position:</strong>
+                <span id="play-entropy-val">Logit Entropy: Moderate</span>
+              </div>
+              <div class="top5-bars" id="top5-candidates-container">
+                <!-- Rendered live via JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="learn-box">
+          <div class="learn-box-header">
+            <span class="learn-badge">SAMPLING MECHANICS</span>
+            <span>How Temperature Shapes Probability Distributions</span>
+          </div>
+          <div class="mode-content-beginner">
+            <p>
+              When Temperature is 0, the model always picks the single most likely word (like answering with 100% predictability). 
+              As temperature rises, lower-ranked candidates get a chance to be chosen, creating creative, diverse, and sometimes surprising sentences.
+            </p>
+          </div>
+          <div class="mode-content-engineer">
+            <p>
+              Given unnormalized logit vector $\mathbf{z}$, temperature scaling modifies the distribution via:
+              $$p_i = \frac{\exp(z_i / \tau)}{\sum_j \exp(z_j / \tau)}$$
+              As $\tau \to 0$, $p \to \text{argmax}(\mathbf{z})$ (greedy argmax). As $\tau \to \infty$, $p \to \text{Uniform}$, flattening probability across all vocabulary tokens.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================
+           MODULE 7: WHAT-IF COMPARISON ENGINE
+           ======================================================== -->
+      <section id="mod-whatif" class="module-section">
+        <div class="module-hero">
+          <div class="module-tag">Signature Feature</div>
+          <h1 class="module-title">What-If Sentence Comparison Engine</h1>
+          <p class="module-desc">
+            Compare two sentences side-by-side. Inspect token differences, semantic distance, and dynamic natural language insights.
+          </p>
+        </div>
+
+        <!-- Presets Row -->
+        <div class="card" style="margin-bottom: 1.25rem;">
+          <div class="card-title" style="margin-bottom: 0.5rem;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+            Interactive Experiment Presets
+          </div>
+          <div class="preset-pills">
+            <span class="preset-pill" onclick="loadWhatIfPreset('The cat sits on the mat.', 'The kitten rests on the rug.', 'Synonyms & Close Meaning')">🐾 Cat on mat vs Kitten on rug</span>
+            <span class="preset-pill" onclick="loadWhatIfPreset('The weather is scorching hot outside.', 'The weather is freezing cold outside.', 'Meaning Shift / Opposites')">🔥 Scorching Hot vs ❄️ Freezing Cold</span>
+            <span class="preset-pill" onclick="loadWhatIfPreset('I deposited money into my bank account.', 'We walked along the river bank.', 'Polysemy (Bank concept)')">🏦 Financial Bank vs 🌊 River Bank</span>
+            <span class="preset-pill" onclick="loadWhatIfPreset('Quantum entanglement particles.', 'How to bake chocolate chip cookies.', 'Semantic Distance (Unrelated)')">⚛️ Quantum Physics vs 🍪 Baking Cookies</span>
+            <span class="preset-pill" onclick="loadWhatIfPreset('Short text.', 'In a comprehensive and meticulously detailed investigation of the phenomenon, the scientists uncovered numerous anomalies.', 'Sentence Length Disparity')">📏 Short vs Long Sentence</span>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <!-- Sentence A -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <span style="color: var(--accent-primary);">● Sentence A</span>
+              </div>
+              <span id="whatif-a-tokens-count" style="font-size: 0.75rem; color: var(--text-muted);">6 Tokens</span>
+            </div>
+            <textarea id="whatif-input-a" class="input-area" rows="3">The cat sits on the mat.</textarea>
+            <div id="whatif-tokens-a" class="tokens-display-box" style="margin-top: 0.75rem; min-height: 80px;"></div>
+          </div>
+
+          <!-- Sentence B -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <span style="color: var(--accent-secondary);">● Sentence B</span>
+              </div>
+              <span id="whatif-b-tokens-count" style="font-size: 0.75rem; color: var(--text-muted);">6 Tokens</span>
+            </div>
+            <textarea id="whatif-input-b" class="input-area" rows="3">The kitten rests on the rug.</textarea>
+            <div id="whatif-tokens-b" class="tokens-display-box" style="margin-top: 0.75rem; min-height: 80px;"></div>
+          </div>
+        </div>
+
+        <div style="text-align: center; margin: 1.25rem 0;">
+          <button class="btn btn-primary" onclick="runWhatIfComparison()" style="padding: 0.6rem 2rem; font-size: 0.95rem;">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"></path></svg>
+            Compare Pipelines
+          </button>
+        </div>
+
+        <!-- Comparison Dashboard Results -->
+        <div class="card" id="whatif-results-card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+              Comparison Dashboard & Semantic Insight
+            </div>
+            <span class="brand-badge" id="whatif-sim-badge">Estimated Demo Similarity</span>
+          </div>
+
+          <div class="grid-3" style="margin-bottom: 1rem;">
+            <div class="stat-box">
+              <div class="stat-label">Estimated Cosine Similarity</div>
+              <div class="stat-value" id="whatif-cosine-score" style="color: var(--accent-primary);">0.892</div>
+              <div class="stat-sub">High Semantic Alignment</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Lexical Token Overlap</div>
+              <div class="stat-value" id="whatif-overlap-score">33%</div>
+              <div class="stat-sub" id="whatif-overlap-detail">2 of 6 tokens shared</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Vector L2 Distance</div>
+              <div class="stat-value" id="whatif-l2-distance">0.46</div>
+              <div class="stat-sub">Close in Semantic Space</div>
+            </div>
+          </div>
+
+          <!-- Dynamic Semantic Relationship Explanation -->
+          <div style="background: var(--bg-elevated); padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); margin-bottom: 1rem;">
+            <div style="font-weight: 600; font-size: 0.85rem; color: var(--accent-highlight); margin-bottom: 0.35rem;">
+              Generated Semantic Insight:
+            </div>
+            <p id="whatif-insight-text" style="font-size: 0.9rem; line-height: 1.6; color: var(--text-primary);">
+              Although these sentences use different words ("cat/sits/mat" vs "kitten/rests/rug"), they describe closely aligned real-world situations. Their estimated demo embeddings project very close together in semantic space.
+            </p>
+          </div>
+
+          <!-- Token Diff Breakdown -->
+          <div class="grid-3">
+            <div class="stat-box" style="border-left: 3px solid var(--accent-success);">
+              <div class="stat-label">Shared Tokens</div>
+              <div id="whatif-shared-tokens" style="font-family: var(--font-mono); font-size: 0.82rem; margin-top: 4px;">the, on</div>
+            </div>
+            <div class="stat-box" style="border-left: 3px solid var(--accent-danger);">
+              <div class="stat-label">Tokens Only in A</div>
+              <div id="whatif-removed-tokens" style="font-family: var(--font-mono); font-size: 0.82rem; margin-top: 4px;">cat, sits, mat</div>
+            </div>
+            <div class="stat-box" style="border-left: 3px solid var(--accent-secondary);">
+              <div class="stat-label">Tokens Only in B</div>
+              <div id="whatif-added-tokens" style="font-family: var(--font-mono); font-size: 0.82rem; margin-top: 4px;">kitten, rests, rug</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================
+           MODULE 8: AI GLOSSARY & QUIZZES
+           ======================================================== -->
+      <section id="mod-glossary" class="module-section">
+        <div class="module-hero">
+          <div class="module-tag">Learning Center</div>
+          <h1 class="module-title">AI Terminology Glossary & Knowledge Quizzes</h1>
+          <p class="module-desc">
+            Master the core technical vocabulary of modern deep learning and test your understanding with interactive quizzes.
+          </p>
+        </div>
+
+        <div class="grid-2">
+          <!-- Left: Searchable Glossary -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15z"></path></svg>
+                AI Terminology Dictionary
+              </div>
+              <input type="text" id="glossary-search" placeholder="Search terms (e.g. BPE, Attention)..." class="input-text" style="width: 180px; padding: 4px 8px; font-size: 0.78rem;" oninput="filterGlossary(this.value)">
+            </div>
+
+            <div id="glossary-items-list" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 480px; overflow-y: auto;">
+              <!-- Glossary items rendered here -->
+            </div>
+          </div>
+
+          <!-- Right: Interactive Quiz -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"></path></svg>
+                Test Your Knowledge Quiz
+              </div>
+              <span id="quiz-score-badge" class="brand-badge">Score: 0 / 5</span>
+            </div>
+
+            <div id="quiz-container">
+              <!-- Interactive Question rendered here -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================
+           MODULE 9: ARCHITECTURE & ABOUT
+           ======================================================== -->
+      <section id="mod-about" class="module-section">
+        <div class="module-hero">
+          <div class="module-tag">About & Architecture</div>
+          <h1 class="module-title">LLM Pipeline Explorer 2.0 Architecture</h1>
+          <p class="module-desc">
+            A production-quality, standalone educational platform crafted without build tools or external server dependencies.
+          </p>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title" style="margin-bottom: 0.75rem;">Platform Specifications</div>
+            <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem; color: var(--text-secondary);">
+              <li>• <strong>Architecture:</strong> Single-file reactive vanilla web application (`index.html`).</li>
+              <li>• <strong>Rendering Engine:</strong> Three.js WebGL (r128) + 2D HTML5 Canvas Software Rasterizer Fallback.</li>
+              <li>• <strong>Tokenizer:</strong> Greedy subword / Byte-Pair Encoding approximation with 50K vocabulary simulation.</li>
+              <li>• <strong>Embeddings:</strong> 16-dimensional deterministic semantic vectors projected via simulated PCA.</li>
+              <li>• <strong>Attention:</strong> Multi-Head Scaled Dot-Product Attention graph and dynamic heatmaps.</li>
+              <li>• <strong>Inference:</strong> Autoregressive streaming token generator with Temperature & Top-P nucleus sampling.</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <div class="card-title" style="margin-bottom: 0.75rem;">Developer & Repository</div>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;">
+              Created by Kushal Pandya. Designed as a portfolio-grade AI learning tool inspired by Linear, Anthropic Console, and modern AI research platforms.
+            </p>
+            <div style="margin-top: 1rem;">
+              <a href="https://github.com/kushal037101/LLM-Pipeline-Explorer" target="_blank" rel="noopener" class="btn btn-primary btn-sm">
+                View GitHub Repository →
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
 </div>
 
-<!-- Modal for token/inspector -->
-<div id="modal"><div class="inner"><button class="close">✖</button><div id="modalContent"></div></div></div>
+<!-- ─────────────────────────────────────────────────────────────
+     COMMAND SEARCH PALETTE MODAL (CMD + K)
+     ───────────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="search-modal" onclick="closeSearchModalOnBackdrop(event)">
+  <div class="modal-card" style="max-width: 480px; padding: 1rem;">
+    <div style="display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.75rem; margin-bottom: 0.75rem;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input type="text" id="cmd-search-input" placeholder="Jump to module, experiment or term..." class="input-text" style="border: none; background: transparent; padding: 0; font-size: 0.95rem;" oninput="onCommandSearch(this.value)">
+    </div>
+    <div id="cmd-search-results" style="display: flex; flex-direction: column; gap: 4px; max-height: 300px; overflow-y: auto;">
+      <!-- Search results rendered here -->
+    </div>
+  </div>
+</div>
 
+<!-- ─────────────────────────────────────────────────────────────
+     TOKEN INSPECTOR MODAL
+     ───────────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="token-modal" onclick="closeTokenModalOnBackdrop(event)">
+  <div class="modal-card" style="max-width: 440px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <div style="font-size: 0.75rem; font-weight: 700; color: var(--accent-primary); text-transform: uppercase;">
+        Subword Token Inspector
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeTokenModal()">✕</button>
+    </div>
+
+    <div style="background: var(--bg-elevated); padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); text-align: center; margin-bottom: 1rem;">
+      <div id="modal-token-text" style="font-size: 1.8rem; font-family: var(--font-mono); font-weight: 700; color: #fff;">
+        token
+      </div>
+      <div id="modal-token-category" class="brand-badge" style="margin-top: 4px;">
+        Standard Subword
+      </div>
+    </div>
+
+    <div class="grid-2" style="gap: 0.5rem; margin-bottom: 1rem;">
+      <div class="stat-box" style="padding: 0.5rem;">
+        <div class="stat-label">Token ID</div>
+        <div class="stat-value" id="modal-token-id" style="font-size: 1.1rem; color: var(--accent-highlight);">12048</div>
+      </div>
+      <div class="stat-box" style="padding: 0.5rem;">
+        <div class="stat-label">Raw Bytes</div>
+        <div class="stat-value" id="modal-token-bytes" style="font-size: 0.85rem; font-family: var(--font-mono);">0x74 0x6F</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 1rem;">
+      <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">Explanation:</div>
+      <p id="modal-token-explanation" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;"></p>
+    </div>
+
+    <div style="display: flex; gap: 0.5rem;">
+      <button class="btn btn-secondary btn-sm" style="flex: 1;" onclick="copyTokenId()">Copy Token ID</button>
+      <button class="btn btn-primary btn-sm" style="flex: 1;" onclick="copyTokenText()">Copy Text</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────
+     DOCUMENTATION MODAL
+     ───────────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="doc-modal" onclick="closeDocModalOnBackdrop(event)">
+  <div class="modal-card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <div class="card-title">LLM Pipeline Explorer Documentation</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeDocModal()">✕</button>
+    </div>
+    <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; display: flex; flex-direction: column; gap: 0.75rem;">
+      <p>
+        <strong>Welcome to LLM Pipeline Explorer 2.0!</strong> This platform is designed to make the invisible mathematical transformations inside Large Language Models visual, tangible, and intuitive.
+      </p>
+      <p>
+        <strong>1. Beginner Mode:</strong> Focuses on conceptual analogies (puzzle pieces, radar directions, semantic clusters, search queries).
+      </p>
+      <p>
+        <strong>2. Engineer Mode:</strong> Reveals vector coordinates, token indices, matrix dimensions, RMSNorm equations, and cosine dot products.
+      </p>
+      <p>
+        <strong>Keyboard Shortcuts:</strong>
+        <br>• <span class="kbd-shortcut">⌘K</span> / <span class="kbd-shortcut">Ctrl+K</span>: Quick Search Command Palette
+        <br>• <span class="kbd-shortcut">Esc</span>: Close open dialogs
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<!-- ─────────────────────────────────────────────────────────────
+     APPLICATION SCRIPT: TOKENIZER, THREE.JS, ATTENTION, MATH
+     ───────────────────────────────────────────────────────────── -->
 <script>
-/* ──────────────────────────────────
-   Utility functions
-   ────────────────────────────────── */
-const $ = s=>document.querySelector(s);
-const $$ = s=>[...document.querySelectorAll(s)];
-function clamp(v,min,max){return Math.min(Math.max(v,min),max);}
-
-/* ──────────────────────────────────
-   Global state
-   ────────────────────────────────── */
-let mode = 'engineer'; // or 'beginner'
-let vocabSize = 1000;
-const demoVocab = [...Array(3000).keys()].map(i=>`token${i}`);
-
-/* ──────────────────────────────────
-   Navigation
-   ────────────────────────────────── */
-function setPage(page){
-  $$('#content section').forEach(s=>s.classList.remove('active'));
-  $(`#${page}`).classList.add('active');
-  $('#pageTitle').textContent = document.querySelector(`#sidebar nav a[data-page="${page}"]`).textContent;
-  $$('#sidebar nav a').forEach(a=>a.classList.toggle('active', a.dataset.page===page));
-}
-$$('#sidebar nav a').forEach(a=>a.addEventListener('click',e=>{e.preventDefault(); setPage(a.dataset.page);}));
-$$('[data-nav]').forEach(b=>b.addEventListener('click',()=>setPage(b.dataset.nav)));
-$('#resetBtn').onclick=()=>location.reload();
-$('#modeToggle').onclick=()=>{
-  mode = mode==='engineer'?'beginner':'engineer';
-  $('#modeToggle').textContent = mode==='engineer'?'Beginner Mode':'Engineer Mode';
-  if(currentStage) renderStageInspector(currentStage);
+/* ─────────────────────────────────────────────────────────────
+   GLOBAL STATE & STORAGE
+   ───────────────────────────────────────────────────────────── */
+const state = {
+  currentModule: 'overview',
+  explanationMode: 'engineer', // 'beginner' | 'engineer'
+  vocabSize: 32000,
+  selectedToken: null,
+  
+  // Galaxy 3D
+  galaxyWords: [],
+  selectedGalaxyWord: null,
+  autoRotateGalaxy: true,
+  showGalaxyLabels: true,
+  
+  // Vector Space
+  vectorA: [0.85, 0.52],
+  vectorB: [0.55, 0.83],
+  
+  // Attention
+  attentionHead: 1,
+  attentionTokens: [],
+  selectedAttentionTokenIdx: null,
+  
+  // Transformer
+  activeTransformerStage: 4,
+  transformerInterval: null,
+  
+  // Playground
+  isGenerating: false,
+  generationInterval: null,
+  temperature: 0.7,
+  topP: 0.9,
+  
+  // Quizzes & Progress
+  visitedModules: new Set(['overview']),
+  quizScore: 0,
+  currentQuizIdx: 0
 };
-/* Mobile menu */
-$('#topbar .menuBtn').onclick=()=>$('#sidebar').classList.toggle('open');
 
-/* ──────────────────────────────────
-   Tokenizer Lab
-   ────────────────────────────────── */
-function simpleTokenizer(text){
-  const tokens=[];let id=0;const words=text.trim().split(/\s+/);
-  for(const w of words){
-    if(w.length<=4 || vocabSize>2000){tokens.push({text:w,id:++id,pos:tokens.length});}
-    else{for(let i=0;i<w.length;i+=3){tokens.push({text:w.slice(i,i+3),id:++id,pos:tokens.length});}}
+/* ─────────────────────────────────────────────────────────────
+   TOAST NOTIFICATION HELPER
+   ───────────────────────────────────────────────────────────── */
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.innerHTML = `<span>${type === 'success' ? '✓' : 'ℹ'}</span> <span>${message}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.3s ease';
+    setTimeout(() => toast.remove(), 300);
+  }, 2500);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   NAVIGATION & PROGRESS
+   ───────────────────────────────────────────────────────────── */
+function navigateTo(moduleId) {
+  state.currentModule = moduleId;
+  state.visitedModules.add(moduleId);
+  
+  // Update section views
+  document.querySelectorAll('.module-section').forEach(sec => sec.classList.remove('active'));
+  const target = document.getElementById(`mod-${moduleId}`);
+  if (target) target.classList.add('active');
+  
+  // Update sidebar active items
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.classList.toggle('active', item.dataset.module === moduleId);
+  });
+  
+  // Update Topbar Crumb
+  const titleMap = {
+    overview: 'Overview',
+    tokenization: 'Tokenization Lab',
+    embeddings: '3D Embedding Galaxy',
+    vectorspace: 'Vector Space Explorer',
+    attention: 'Self-Attention Mechanism',
+    transformer: 'Transformer Architecture',
+    playground: 'LLM Playground',
+    whatif: 'What-If Comparison Engine',
+    glossary: 'AI Glossary & Quizzes',
+    about: 'Architecture & Specifications'
+  };
+  document.getElementById('topbar-crumb').textContent = titleMap[moduleId] || 'Module';
+  
+  // Update Progress Bar
+  const total = 8;
+  const count = Math.min(state.visitedModules.size, total);
+  document.getElementById('sidebar-progress-num').textContent = `${count} / ${total}`;
+  document.getElementById('sidebar-progress-bar').style.width = `${(count / total) * 100}%`;
+  
+  // Trigger sub-module canvas resize if needed
+  if (moduleId === 'embeddings') {
+    setTimeout(initGalaxyRenderer, 50);
+  } else if (moduleId === 'vectorspace') {
+    setTimeout(drawVectorPlane, 50);
+  } else if (moduleId === 'attention') {
+    setTimeout(updateAttentionGraph, 50);
   }
+  
+  // Close mobile sidebar if open
+  document.getElementById('sidebar').classList.remove('open');
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+/* ─────────────────────────────────────────────────────────────
+   MODE SWITCH: BEGINNER 💡 vs ENGINEER ⚙️
+   ───────────────────────────────────────────────────────────── */
+function toggleExplanationMode() {
+  const isEngineer = state.explanationMode === 'engineer';
+  state.explanationMode = isEngineer ? 'beginner' : 'engineer';
+  
+  document.body.className = `mode-${state.explanationMode}`;
+  document.getElementById('pill-beginner').classList.toggle('active', state.explanationMode === 'beginner');
+  document.getElementById('pill-engineer').classList.toggle('active', state.explanationMode === 'engineer');
+  
+  showToast(`Switched to ${state.explanationMode.toUpperCase()} mode`, 'info');
+}
+
+function resetAllState() {
+  setTokenPreset('Artificial intelligence revolutionizes computational linguistics with subword tokenization.');
+  loadWhatIfPreset('The cat sits on the mat.', 'The kitten rests on the rug.', 'Synonyms');
+  setPresetVectors(0.85, 0.52, 0.55, 0.83);
+  showToast('Workspace reset to defaults', 'info');
+}
+
+/* ─────────────────────────────────────────────────────────────
+   MODULE 1: TOKENIZER ENGINE (BPE APPROXIMATION)
+   ───────────────────────────────────────────────────────────── */
+const BPE_VOCAB_BASE = [
+  'the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'i', 'it', 'for', 'not', 'on', 'with', 'he',
+  'as', 'you', 'do', 'at', 'this', 'but', 'his', 'by', 'from', 'they', 'we', 'say', 'her', 'she', 'or',
+  'an', 'will', 'my', 'one', 'all', 'would', 'there', 'their', 'what', 'so', 'up', 'out', 'if', 'about',
+  'who', 'get', 'which', 'go', 'me', 'when', 'make', 'can', 'like', 'time', 'no', 'just', 'him', 'know',
+  'take', 'people', 'into', 'year', 'your', 'good', 'some', 'could', 'them', 'see', 'other', 'than', 'then',
+  'now', 'look', 'only', 'come', 'its', 'over', 'think', 'also', 'back', 'after', 'use', 'two', 'how',
+  'our', 'work', 'first', 'well', 'way', 'even', 'new', 'want', 'because', 'any', 'these', 'give', 'day',
+  'most', 'us', 'artificial', 'intelligence', 'revolution', 'computational', 'linguistics', 'token', 'ization',
+  'sub', 'word', 'model', 'neural', 'network', 'learning', 'pipeline', 'explore', 'cat', 'kitten', 'dog',
+  'puppy', 'mat', 'rug', 'weather', 'hot', 'cold', 'bank', 'river', 'quantum', 'cookie', 'science',
+  'algorithm', 'matrix', 'vector', 'attention', 'transformer', 'embed', 'ding', 'calculate', 'loss', 'prediction'
+];
+
+function tokenizeSubwords(text, vocabCap) {
+  if (!text) return [];
+  const words = text.match(/\w+|[^\w\s]|\s+/g) || [];
+  const tokens = [];
+  let charIdx = 0;
+  
+  words.forEach(w => {
+    // If it's pure whitespace
+    if (/^\s+$/.test(w)) {
+      tokens.push({
+        text: 'Ġ' + (w.length > 1 ? `[${w.length}sp]` : ''),
+        raw: w,
+        id: 220 + (w.length % 50),
+        category: 'Whitespace',
+        start: charIdx,
+        end: charIdx + w.length
+      });
+      charIdx += w.length;
+      return;
+    }
+    
+    // Punctuation
+    if (/^[^\w\s]+$/.test(w)) {
+      for (const ch of w) {
+        tokens.push({
+          text: ch,
+          raw: ch,
+          id: 1000 + ch.charCodeAt(0),
+          category: 'Punctuation',
+          start: charIdx,
+          end: charIdx + 1
+        });
+        charIdx += 1;
+      }
+      return;
+    }
+
+    const lower = w.toLowerCase();
+    
+    // If vocabulary is large and word exists in dictionary
+    if (vocabCap > 20000 && BPE_VOCAB_BASE.includes(lower)) {
+      tokens.push({
+        text: w,
+        raw: w,
+        id: hashString(lower) % vocabCap + 100,
+        category: 'Word',
+        start: charIdx,
+        end: charIdx + w.length
+      });
+    } else {
+      // Subword split based on vocab size
+      const chunkSize = vocabCap < 2000 ? 2 : (vocabCap < 15000 ? 3 : 5);
+      for (let i = 0; i < w.length; i += chunkSize) {
+        const piece = w.slice(i, i + chunkSize);
+        tokens.push({
+          text: (i > 0 ? '##' : '') + piece,
+          raw: piece,
+          id: hashString(piece.toLowerCase()) % vocabCap + 500,
+          category: i === 0 ? 'Subword Root' : 'Subword Suffix',
+          start: charIdx + i,
+          end: charIdx + i + piece.length
+        });
+      }
+    }
+    charIdx += w.length;
+  });
+  
   return tokens;
 }
-function updateTokenStats(tokens,text){
-  const chars=text.length, words=text.trim().split(/\s+/).filter(Boolean).length, tcount=tokens.length;
-  const estCost = (tcount/1000).toFixed(3);
-  $('#tokenStats').innerHTML = `
-    Characters: ${chars} | Words: ${words} | Tokens: ${tcount} |
-    Estimated cost: $${estCost}
-  `;
-}
-function renderTokens(tokens){
-  $('#tokenDisplay').innerHTML='';
-  tokens.forEach(tok=>{const el=document.createElement('span');el.className='token';el.textContent=`${tok.text}`;el.title=`ID:${tok.id}`;el.onclick=()=>showTokenModal(tok);$('#tokenDisplay').appendChild(el);});
-}
-function showTokenModal(tok){
-  const cat = /^\d+$/.test(tok.text) ? 'Number' : (/[a-z]/i.test(tok.text)?'Word':'Punctuation');
-  const beginner=`The token “${tok.text}” is a ${cat.toLowerCase()}.`;
-  const engineer=`Token "${tok.text}" (ID ${tok.id}) at position ${tok.pos}, length ${tok.text.length}.`;
-  const content=`
-    <h3>Token Inspector</h3>
-    <p><strong>Text:</strong> ${tok.text}</p>
-    <p><strong>ID:</strong> ${tok.id}</p>
-    <p><strong>Position:</strong> ${tok.pos}</p>
-    <p><strong>Length:</strong> ${tok.text.length}</p>
-    <p><strong>Category:</strong> ${cat}</p>
-    <p><strong>Beginner:</strong> ${beginner}</p>
-    <p><strong>Engineer:</strong> ${engineer}</p>
-    <button onclick="copyToClipboard('${tok.id}')">Copy ID</button>
-  `;
-  $('#modalContent').innerHTML=content;$('#modal').style.display='flex';
-}
-$('#modal .close').onclick=()=>$('#modal').style.display='none';
-function copyToClipboard(txt){navigator.clipboard.writeText(txt);alert('Copied to clipboard');}
-$('#sampleTextBtn').onclick=()=>$('#tokenInput').value='The quick brown fox jumps over the lazy dog.';
-$('#clearTokenBtn').onclick=()=>{$('#tokenInput').value='';$('#tokenDisplay').innerHTML='';$('#tokenStats').innerHTML='';};
-$('#vocabSize').oninput=e=>{vocabSize=+e.target.value;$('#vocabSizeVal').textContent=vocabSize;};
-$('#tokenizeBtn').onclick=()=>{const txt=$('#tokenInput').value;const tokens=simpleTokenizer(txt);renderTokens(tokens);updateTokenStats(tokens,txt);};
 
-/* ──────────────────────────────────
-   Embedding Galaxy (Three.js)
-   ────────────────────────────────── */
-let threeRenderer, threeScene, threeCamera, pointGroup;
-const demoClusters = {
-  Animals:['cat','dog','lion','tiger','elephant'],
-  Technology:['computer','server','network','algorithm','robot'],
-  Programming:['function','variable','object','class','async'],
-  Emotions:['happy','sad','angry','joy','fear'],
-  Food:['pizza','sushi','apple','bread','cheese'],
-  Science:['atom','planet','gravity','evolution','quantum']
-};
-function initThree(){
-  const canvas = $('#embedCanvas');
-  threeRenderer = new THREE.WebGLRenderer({canvas, antialias:true});
-  threeRenderer.setSize(canvas.clientWidth, canvas.clientHeight);
-  threeScene = new THREE.Scene();
-  threeCamera = new THREE.PerspectiveCamera(45, canvas.clientWidth/canvas.clientHeight, 0.1, 1000);
-  threeCamera.position.z = 30;
-  const light = new THREE.DirectionalLight(0xffffff,0.8);
-  light.position.set(0,20,10);
-  threeScene.add(light);
-  pointGroup = new THREE.Group();
-  threeScene.add(pointGroup);
-  let idx=0;
-  for(const [cluster, words] of Object.entries(demoClusters)){
-    const color = new THREE.Color(`hsl(${(idx*60)%360},70%,60%)`);
-    words.forEach((w,i)=>{
-      const phi = Math.random()*Math.PI*2;
-      const theta = Math.random()*Math.PI;
-      const radius = 8 + Math.random()*2;
-      const x = radius*Math.sin(theta)*Math.cos(phi);
-      const y = radius*Math.sin(theta)*Math.sin(phi);
-      const z = radius*Math.cos(theta);
-      const geom = new THREE.SphereGeometry(0.4,8,8);
-      const mat = new THREE.MeshStandardMaterial({color});
-      const sphere = new THREE.Mesh(geom,mat);
-      sphere.position.set(x,y,z);
-      sphere.userData={word:w,cluster};
-      pointGroup.add(sphere);
-    });
-    idx++;
+function hashString(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
   }
-  const controls = new THREE.OrbitControls(threeCamera, canvas);
-  controls.enableDamping=true;
-  animateThree();
+  return Math.abs(hash);
 }
-function animateThree(){
-  requestAnimationFrame(animateThree);
-  pointGroup.rotation.y+=0.001;
-  threeRenderer.render(threeScene,threeCamera);
-}
-function searchEmbedding(word){
-  pointGroup.children.forEach(p=>p.material.emissive.setHex(0x000000));
-  const target = pointGroup.children.find(p=>p.userData.word===word);
-  if(target){target.material.emissive.setHex(0x555555);
-    const pos = target.position.clone().multiplyScalar(2);
-    threeCamera.position.lerp(pos,0.1);
-    threeCamera.lookAt(target.position);
-  }
-}
-$('#embedSearch').oninput=e=>searchEmbedding(e.target.value.trim().toLowerCase());
-if (THREE) initThree();
 
-/* ──────────────────────────────────
-   Pipeline Microscope
-   ────────────────────────────────── */
-let pipelineSteps = ['input','tokenizer','embedding','semantic','insight'];
-let currentStepIndex = -1;
-let currentStage = null;
-let playInterval = null;
-function resetPipeline(){
-  currentStepIndex=-1;$('#pipelineViz').innerHTML='';$('#stageInspector').style.display='none';
-  $('#stepPrevBtn').disabled=true;$('#stepNextBtn').disabled=true;$('#playPipeBtn').disabled=true;
+function runTokenizer() {
+  const text = document.getElementById('token-input-text').value;
+  const tokens = tokenizeSubwords(text, state.vocabSize);
+  renderTokenChips(tokens);
+  updateTokenMetrics(tokens, text);
+  renderStrategyComparison(text);
 }
-function runPipeline(){
-  resetPipeline();
-  const text = $('#pipeInput').value.trim();
-  if(!text){alert('Enter some text');return;}
-  addNode('input','Input',text);
-  const tokens = simpleTokenizer(text);
-  addNode('tokenizer','Tokenizer',tokens.map(t=>t.text).join(' '));
-  const vec = demoVector(text);
-  addNode('embedding','Embedding',`[${vec.slice(0,5).join(',')} …]`);
-  const sim = computeSimilarity(vec);
-  addNode('semantic','Semantic',`Top match: ${sim.word} (${(sim.score*100).toFixed(1)}%)`);
-  addNode('insight','Insight',generateInsight(text, tokens, vec));
-  $('#stepNextBtn').disabled=false;$('#playPipeBtn').disabled=false;
-}
-function addNode(id,title,preview){
-  const node=document.createElement('div');
-  node.style.padding='0.6rem 1rem';
-  node.style.background='var(--elev)';
-  node.style.borderRadius='var(--radius)';
-  node.style.minWidth='120px';
-  node.style.cursor='pointer';
-  node.dataset.step=id;
-  node.innerHTML=`<strong>${title}</strong><br><small>${preview.slice(0,30)}${preview.length>30?'…':''}</small>`;
-  node.onclick=()=>showStage(id);
-  $('#pipelineViz').appendChild(node);
-}
-function showStage(stepId){
-  const idx = pipelineSteps.indexOf(stepId);
-  currentStage = stepId;
-  $$('#pipelineViz div').forEach(d=>d.style.border = (d.dataset.step===stepId)?'2px solid var(--primary)':'none');
-  renderStageInspector(stepId);
-}
-function renderStageInspector(stepId){
-  const inspector = $('#stageInspector');
-  inspector.style.display='block';
-  const txt = $('#pipeInput').value.trim();
-  const tokens = simpleTokenizer(txt);
-  const vec = demoVector(txt);
-  const sim = computeSimilarity(vec);
-  let html='';
-  if(stepId==='input'){
-    html=`<h3>Input</h3><p><strong>Text:</strong> ${txt}</p><p>Characters: ${txt.length} | Words: ${txt.split(/\s+/).length}</p>`;
-  }else if(stepId==='tokenizer'){
-    html=`<h3>Tokenizer</h3><p>Tokens (${tokens.length}): ${tokens.map(t=>t.text).join(' ')}</p>`;
-  }else if(stepId==='embedding'){
-    html=`<h3>Embedding</h3><p>Vector (first 5 values): ${vec.slice(0,5).map(v=>v.toFixed(2)).join(', ')}</p>`;
-  }else if(stepId==='semantic'){
-    html=`<h3>Semantic Analysis</h3><p>Closest demo word: <strong>${sim.word}</strong> (${(sim.score*100).toFixed(1)}% similarity)</p>`;
-  }else if(stepId==='insight'){
-    html=`<h3>Insight</h3><p>${generateInsight(txt,tokens,vec)}</p>`;
-  }
-  const beg=`<p><em>Beginner:</em> ${beginnerExplain(stepId,txt,tokens,vec,sim)}</p>`;
-  const eng=`<p><em>Engineer:</em> ${engineerExplain(stepId,txt,tokens,vec,sim)}</p>`;
-  inspector.innerHTML = html + (mode==='beginner'?beg:eng);
-}
-function beginnerExplain(step,txt,toks,vec,sim){
-  const map = {
-    input:'You typed a sentence. The app counts characters and words.',
-    tokenizer:'The sentence is broken into smaller pieces (tokens) that the model understands.',
-    embedding:'Each token becomes a list of numbers (aa vector) that captures its meaning.',
-    semantic:`The app looks for the word whose meaning is most similar to the whole sentence.`,
-    insight:'A short human‑readable summary explains what the model “sees”.'
-  };return map[step];
-}
-function engineerExplain(step,txt,toks,vec,sim){
-  const map = {
-    input:`Length=${txt.length}, Words=${txt.split(/\s+/).length}`,
-    tokenizer:`Token count=${toks.length}, IDs=[${toks.map(t=>t.id).join(',')}]`,
-    embedding:`Vector dim=8, values≈[${vec.map(v=>v.toFixed(2)).join(', ')}]`,
-    semantic:`Cosine similarity with demo word “${sim.word}” = ${sim.score.toFixed(3)}`,
-    insight:`Generated explanation based on token‑level transformations.`
-  };return map[step];
-}
-function demoVector(text){
-  const base = Array(8).fill(0);
-  for(let i=0;i<text.length;i++) base[i%8] += text.charCodeAt(i);
-  return base.map(v=>v/100);
-}
-function cosine(a,b){let dot=0,na=0,nb=0;for(let i=0;i<a.length;i++){dot+=a[i]*b[i];na+=a[i]*a[i];nb+=b[i]*b[i];}return dot/Math.sqrt(na*nb);}
-function computeSimilarity(vec){
-  const demoWords = {cat:[0.5,0.3,0.1,0.2,0.4,0.1,0.0,0.2],dog:[0.4,0.2,0.2,0.3,0.5,0.0,0.1,0.1],computer:[0.2,0.6,0.4,0.1,0.3,0.2,0.5,0.3],happy:[0.5,0.5,0.1,0.4,0.2,0.3,0.2,0.1]};
-  let best={word:'unknown',score:0};
-  for(const [w,v] of Object.entries(demoWords)){
-    const s=cosine(vec,v);
-    if(s>best.score) best={word:w,score:s};
-  }
-  return best;
-}
-function generateInsight(txt,toks,vec){return `The sentence contains ${toks.length} tokens; its embedding is a compact numeric representation. Similarity to known concepts suggests it is about “${computeSimilarity(vec).word}”.`;}
-$('#runPipeBtn').onclick=runPipeline;
-$('#stepPrevBtn').onclick=()=>{ if(currentStepIndex>0) showStage(pipelineSteps[--currentStepIndex]); };
-$('#stepNextBtn').onclick=()=>{ if(currentStepIndex<pipelineSteps.length-1) showStage(pipelineSteps[++currentStepIndex]); };
-$('#playPipeBtn').onclick=()=>{
-  $('#playPipeBtn').style.display='none';$('#pausePipeBtn').style.display='inline-block';
-  playInterval=setInterval(()=>{
-    if(currentStepIndex<pipelineSteps.length-1){showStage(pipelineSteps[++currentStepIndex]);}
-    else{clearInterval(playInterval);$('#playPipeBtn').style.display='inline-block';$('#pausePipeBtn').style.display='none';}
-  },800);
-};
-$('#pausePipeBtn').onclick=()=>{clearInterval(playInterval);$('#playPipeBtn').style.display='inline-block';$('#pausePipeBtn').style.display='none';};
-$('#resetPipeBtn').onclick=resetPipeline;
 
-/* ──────────────────────────────────
-   Experiments
-   ────────────────────────────────── */
-const experiments = [
-  {title:'Synonyms',desc:'Compare similar words.',a:'fast',b:'quick'},
-  {title:'Meaning Shift',desc:'Change one word.',a:'The sky is blue.',b:'The sky is gray.'},
-  {title:'Opposites',desc:'Opposite concepts.',a:'hot',b:'cold'},
-  {title:'Token Explosion',desc:'Long / weird token.',a:'supercalifragilisticexpialidocious',b:'pneumonoultramicroscopicsilicovolcanoconiosis'},
-  {title:'Sentence Length',desc:'Short vs long.',a:'Hi.',b:'In the midst of the bustling city, a lone traveler contemplated the meaning of existence.'},
-  {title:'Semantic Distance',desc:'Unrelated sentences.',a:'Quantum physics',b:'Baking a cake'}
+function renderTokenChips(tokens) {
+  const container = document.getElementById('tokens-display-box');
+  container.innerHTML = '';
+  
+  const colors = [
+    'rgba(139, 124, 255, 0.25)',
+    'rgba(54, 207, 201, 0.25)',
+    'rgba(96, 165, 250, 0.25)',
+    'rgba(245, 158, 11, 0.25)',
+    'rgba(244, 63, 94, 0.25)',
+    'rgba(16, 185, 129, 0.25)'
+  ];
+  
+  tokens.forEach((t, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'token-chip';
+    chip.style.backgroundColor = colors[i % colors.length];
+    chip.innerHTML = `${escapeHtml(t.text)}<span class="token-sub-id">${t.id}</span>`;
+    chip.title = `Token ID: ${t.id} | Span: ${t.start}..${t.end}`;
+    chip.onclick = () => openTokenModal(t);
+    container.appendChild(chip);
+  });
+}
+
+function updateTokenMetrics(tokens, text) {
+  const charCount = text.length;
+  const tokenCount = tokens.length;
+  const ratio = tokenCount > 0 ? (charCount / tokenCount).toFixed(1) : '0';
+  const cost = ((tokenCount / 1000) * 0.0015).toFixed(5);
+  
+  document.getElementById('token-count-pill').textContent = `${tokenCount} Tokens`;
+  document.getElementById('stat-token-count').textContent = tokenCount;
+  document.getElementById('stat-char-count').textContent = charCount;
+  document.getElementById('stat-ratio').textContent = ratio;
+  document.getElementById('stat-cost').textContent = `$${cost}`;
+}
+
+function onVocabSliderChange(val) {
+  state.vocabSize = parseInt(val);
+  const label = state.vocabSize < 2000 ? 'Small (High Subword Splitting)' : (state.vocabSize < 20000 ? 'Medium' : 'Standard 32K+');
+  document.getElementById('vocab-size-val').textContent = `Vocab: ${state.vocabSize.toLocaleString()} (${label})`;
+  runTokenizer();
+}
+
+function setTokenPreset(text) {
+  document.getElementById('token-input-text').value = text;
+  runTokenizer();
+}
+
+function clearTokenInput() {
+  document.getElementById('token-input-text').value = '';
+  runTokenizer();
+}
+
+function simulateBpeMergeStep() {
+  if (state.vocabSize > 3000) {
+    onVocabSliderChange(1000);
+    document.getElementById('vocab-slider').value = 1000;
+    showToast('Simulated Vocab Compression (Shattered tokens)', 'info');
+  } else {
+    onVocabSliderChange(32000);
+    document.getElementById('vocab-slider').value = 32000;
+    showToast('Simulated Merged BPE Vocab (Consolidated tokens)', 'success');
+  }
+}
+
+function renderStrategyComparison(text) {
+  const container = document.getElementById('strategy-comparison-container');
+  if (!container) return;
+  
+  const bpeTokens = tokenizeSubwords(text, 32000);
+  const wpTokens = tokenizeSubwords(text, 15000);
+  const charTokens = text.split('').slice(0, 40).map((c, i) => ({ text: c, id: c.charCodeAt(0) }));
+  const wordTokens = (text.match(/\S+/g) || []).map((w, i) => ({ text: w, id: i + 1 }));
+  
+  const strats = [
+    { name: 'BPE (GPT-4 Style)', tokens: bpeTokens.slice(0, 10), count: bpeTokens.length },
+    { name: 'WordPiece (BERT)', tokens: wpTokens.slice(0, 10), count: wpTokens.length },
+    { name: 'Character Level', tokens: charTokens.slice(0, 10), count: text.length },
+    { name: 'Word Level', tokens: wordTokens.slice(0, 10), count: wordTokens.length }
+  ];
+  
+  container.innerHTML = strats.map(s => `
+    <div class="comparison-strat-row">
+      <div class="strat-name">${s.name}</div>
+      <div class="strat-tokens">
+        ${s.tokens.map(t => `<span class="token-chip" style="font-size: 0.72rem; padding: 1px 5px;">${escapeHtml(t.text)}</span>`).join('')}
+        ${s.count > 10 ? `<span style="font-size: 0.7rem; color: var(--text-muted); align-self: center;">+${s.count - 10} more</span>` : ''}
+      </div>
+      <div style="font-family: var(--font-mono); font-size: 0.8rem; text-align: right; color: var(--accent-highlight);">${s.count} tokens</div>
+    </div>
+  `).join('');
+}
+
+/* ─────────────────────────────────────────────────────────────
+   TOKEN INSPECTOR MODAL
+   ───────────────────────────────────────────────────────────── */
+function openTokenModal(token) {
+  state.selectedToken = token;
+  document.getElementById('modal-token-text').textContent = token.text;
+  document.getElementById('modal-token-category').textContent = token.category;
+  document.getElementById('modal-token-id').textContent = token.id;
+  
+  // Format bytes
+  const bytes = Array.from(new TextEncoder().encode(token.raw))
+    .map(b => '0x' + b.toString(16).toUpperCase().padStart(2, '0'))
+    .join(' ');
+  document.getElementById('modal-token-bytes').textContent = bytes;
+  
+  const isBeginner = state.explanationMode === 'beginner';
+  document.getElementById('modal-token-explanation').textContent = isBeginner
+    ? `This token is treated as an individual piece of meaning. The model looks up its unique ID (${token.id}) in its memory table to get its initial definition vector.`
+    : `Token ID ${token.id} acts as the index row pointer in the embedding table W_e ∈ R^{V × d_model}. Raw UTF-8 bytes: [${bytes}]. Span offset: [${token.start}, ${token.end}].`;
+    
+  document.getElementById('token-modal').classList.add('open');
+}
+
+function closeTokenModal() {
+  document.getElementById('token-modal').classList.remove('open');
+}
+function closeTokenModalOnBackdrop(e) {
+  if (e.target.id === 'token-modal') closeTokenModal();
+}
+function copyTokenId() {
+  if (state.selectedToken) {
+    navigator.clipboard.writeText(state.selectedToken.id.toString());
+    showToast(`Copied Token ID: ${state.selectedToken.id}`, 'success');
+  }
+}
+function copyTokenText() {
+  if (state.selectedToken) {
+    navigator.clipboard.writeText(state.selectedToken.raw);
+    showToast(`Copied Text: "${state.selectedToken.raw}"`, 'success');
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   MODULE 2: 3D EMBEDDING GALAXY (THREE.JS + 2D FALLBACK)
+   ───────────────────────────────────────────────────────────── */
+const EMBEDDING_DATASET = [
+  // Animals (Cyan)
+  { word: 'cat', cluster: 'Animals', color: '#36CFC9', x: -8, y: 4, z: 2 },
+  { word: 'kitten', cluster: 'Animals', color: '#36CFC9', x: -7, y: 5, z: 3 },
+  { word: 'dog', cluster: 'Animals', color: '#36CFC9', x: -6, y: 2, z: -1 },
+  { word: 'puppy', cluster: 'Animals', color: '#36CFC9', x: -5, y: 3, z: 0 },
+  { word: 'lion', cluster: 'Animals', color: '#36CFC9', x: -9, y: 1, z: 5 },
+  { word: 'tiger', cluster: 'Animals', color: '#36CFC9', x: -8, y: 0, z: 6 },
+  { word: 'elephant', cluster: 'Animals', color: '#36CFC9', x: -10, y: -3, z: 1 },
+  
+  // Technology (Blue)
+  { word: 'computer', cluster: 'Technology', color: '#60A5FA', x: 7, y: 6, z: -4 },
+  { word: 'server', cluster: 'Technology', color: '#60A5FA', x: 8, y: 5, z: -5 },
+  { word: 'algorithm', cluster: 'Technology', color: '#60A5FA', x: 6, y: 8, z: -3 },
+  { word: 'robot', cluster: 'Technology', color: '#60A5FA', x: 5, y: 5, z: -6 },
+  { word: 'database', cluster: 'Technology', color: '#60A5FA', x: 9, y: 4, z: -3 },
+  { word: 'cloud', cluster: 'Technology', color: '#60A5FA', x: 7, y: 7, z: -2 },
+
+  // Programming (Violet)
+  { word: 'python', cluster: 'Programming', color: '#8B7CFF', x: 5, y: -5, z: -5 },
+  { word: 'javascript', cluster: 'Programming', color: '#8B7CFF', x: 6, y: -6, z: -6 },
+  { word: 'function', cluster: 'Programming', color: '#8B7CFF', x: 4, y: -4, z: -3 },
+  { word: 'variable', cluster: 'Programming', color: '#8B7CFF', x: 3, y: -5, z: -4 },
+  { word: 'async', cluster: 'Programming', color: '#8B7CFF', x: 5, y: -7, z: -4 },
+
+  // Emotions (Rose)
+  { word: 'joy', cluster: 'Emotions', color: '#F43F5E', x: -3, y: 8, z: -7 },
+  { word: 'happiness', cluster: 'Emotions', color: '#F43F5E', x: -2, y: 9, z: -6 },
+  { word: 'love', cluster: 'Emotions', color: '#F43F5E', x: -4, y: 7, z: -8 },
+  { word: 'calm', cluster: 'Emotions', color: '#F43F5E', x: -1, y: 6, z: -5 },
+  { word: 'sorrow', cluster: 'Emotions', color: '#F43F5E', x: -6, y: 7, z: -9 },
+
+  // Food (Amber)
+  { word: 'pizza', cluster: 'Food', color: '#F59E0B', x: 2, y: -8, z: 6 },
+  { word: 'sushi', cluster: 'Food', color: '#F59E0B', x: 3, y: -9, z: 5 },
+  { word: 'bread', cluster: 'Food', color: '#F59E0B', x: 1, y: -7, z: 7 },
+  { word: 'cheese', cluster: 'Food', color: '#F59E0B', x: 2, y: -6, z: 8 },
+  { word: 'coffee', cluster: 'Food', color: '#F59E0B', x: 4, y: -7, z: 4 },
+
+  // Science (Emerald)
+  { word: 'atom', cluster: 'Science', color: '#10B981', x: -2, y: -4, z: 9 },
+  { word: 'quantum', cluster: 'Science', color: '#10B981', x: -3, y: -3, z: 10 },
+  { word: 'gravity', cluster: 'Science', color: '#10B981', x: -1, y: -5, z: 8 },
+  { word: 'galaxy', cluster: 'Science', color: '#10B981', x: -4, y: -2, z: 11 },
+  { word: 'energy', cluster: 'Science', color: '#10B981', x: -2, y: -6, z: 7 },
+
+  // Royalty & People (Purple-Pink)
+  { word: 'king', cluster: 'Royalty', color: '#D946EF', x: 0, y: 2, z: 0 },
+  { word: 'queen', cluster: 'Royalty', color: '#D946EF', x: 1, y: 3, z: 1 },
+  { word: 'man', cluster: 'Royalty', color: '#D946EF', x: -1, y: 0, z: -1 },
+  { word: 'woman', cluster: 'Royalty', color: '#D946EF', x: 0, y: 1, z: 0 },
+  { word: 'prince', cluster: 'Royalty', color: '#D946EF', x: -1, y: 3, z: 2 },
+  { word: 'princess', cluster: 'Royalty', color: '#D946EF', x: 1, y: 4, z: 2 }
 ];
-function loadExperiments(){
-  const list = $('#expList');
-  experiments.forEach((exp,i)=>{const card=document.createElement('div');card.className='card';card.innerHTML=`<h3>${exp.title}</h3><p>${exp.desc}</p><button data-idx="${i}">Load</button>`;list.appendChild(card);});
-  $$('#expList button').forEach(b=>b.addEventListener('click',e=>{const idx=e.target.dataset.idx;const exp=experiments[idx];$('#pipeInput').value=exp.a;window._expB = exp.b;alert('Loaded experiment. Click “Run Pipeline” then “Compare Pipelines” (appears after first run).');}));
-}
-loadExperiments();
 
-/* ──────────────────────────────────
-   What‑If Engine (within Microscope)
-   ────────────────────────────────── */
-let compareData=null;
-function createCompareControls(){
-  const ctrl=document.createElement('div');
-  ctrl.style.margin='0.5rem 0';
-  ctrl.innerHTML=`<textarea id="compareB" placeholder="Sentence B…" style="height:80px;margin-top:0.5rem;"></textarea>
-    <button id="compareBtn">Compare Pipelines</button>
-    <div id="compareResult" style="margin-top:0.8rem;"></div>`;
-  $('#microscope').appendChild(ctrl);
-  $('#compareBtn').onclick=runComparison;
-}
-function runComparison(){
-  const a = $('#pipeInput').value.trim();
-  const b = $('#compareB').value.trim() || window._expB || '';
-  if(!a||!b){alert('Both sentences required');return;}
-  const ta = simpleTokenizer(a);
-  const tb = simpleTokenizer(b);
-  const va = demoVector(a);
-  const vb = demoVector(b);
-  const sim = cosine(va,vb);
-  const setA = new Set(ta.map(t=>t.text));
-  const setB = new Set(tb.map(t=>t.text));
-  const added=[...setB].filter(x=>!setA.has(x));
-  const removed=[...setA].filter(x=>!setB.has(x));
-  const shared=[...setA].filter(x=>setB.has(x));
-  const html = `<h3>Comparison Result</h3>
-    <p><strong>Shared tokens (${shared.length}):</strong> ${shared.join(', ')}</p>
-    <p><strong>Added in B (${added.length}):</strong> ${added.join(', ')}</p>
-    <p><strong>Removed from A (${removed.length}):</strong> ${removed.join(', ')}</p>
-    <p><strong>Token count diff:</strong> ${ta.length} vs ${tb.length}</p>
-    <p><strong>Estimated demo similarity:</strong> ${(sim*100).toFixed(1)}%</p>`;
-  $('#compareResult').innerHTML=html;
-}
-createCompareControls();
+let threeRenderer = null, threeScene = null, threeCamera = null, threeControls = null;
+let threePointGroup = null, threeRaycaster = null, threeMouse = null;
+let isThreeInitialized = false;
 
-/* ──────────────────────────────────
-   Initialisation
-   ────────────────────────────────── */
-resetPipeline();
+function initGalaxyRenderer() {
+  if (isThreeInitialized) return;
+  const canvas = document.getElementById('three-canvas');
+  if (!canvas) return;
+  
+  renderGalaxyClusterPills();
+
+  // Check if THREE is available via CDN
+  if (typeof THREE !== 'undefined') {
+    try {
+      const width = canvas.parentElement.clientWidth;
+      const height = canvas.parentElement.clientHeight;
+
+      threeScene = new THREE.Scene();
+      threeCamera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
+      threeCamera.position.set(0, 15, 30);
+
+      threeRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+      threeRenderer.setSize(width, height);
+      threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+      if (typeof THREE.OrbitControls !== 'undefined') {
+        threeControls = new THREE.OrbitControls(threeCamera, canvas);
+        threeControls.enableDamping = true;
+        threeControls.dampingFactor = 0.05;
+      }
+
+      // Lighting
+      const ambLight = new THREE.AmbientLight(0xffffff, 0.9);
+      threeScene.add(ambLight);
+      const pointLight = new THREE.PointLight(0x8B7CFF, 1.5, 50);
+      pointLight.position.set(0, 10, 10);
+      threeScene.add(pointLight);
+
+      threePointGroup = new THREE.Group();
+      threeScene.add(threePointGroup);
+
+      // Create spheres
+      EMBEDDING_DATASET.forEach(item => {
+        const geom = new THREE.SphereGeometry(0.45, 16, 16);
+        const mat = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(item.color),
+          emissive: new THREE.Color(item.color),
+          emissiveIntensity: 0.3,
+          roughness: 0.3
+        });
+        const mesh = new THREE.Mesh(geom, mat);
+        mesh.position.set(item.x, item.y, item.z);
+        mesh.userData = item;
+        threePointGroup.add(mesh);
+      });
+
+      // Raycaster for click selection
+      threeRaycaster = new THREE.Raycaster();
+      threeMouse = new THREE.Vector2();
+
+      canvas.addEventListener('click', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        threeMouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        threeMouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        threeRaycaster.setFromCamera(threeMouse, threeCamera);
+        const intersects = threeRaycaster.intersectObjects(threePointGroup.children);
+        if (intersects.length > 0) {
+          selectGalaxyPoint(intersects[0].object.userData);
+        }
+      });
+
+      window.addEventListener('resize', () => {
+        if (!canvas.parentElement) return;
+        const w = canvas.parentElement.clientWidth;
+        const h = canvas.parentElement.clientHeight;
+        threeCamera.aspect = w / h;
+        threeCamera.updateProjectionMatrix();
+        threeRenderer.setSize(w, h);
+      });
+
+      function animateThree() {
+        requestAnimationFrame(animateThree);
+        if (state.autoRotateGalaxy && threePointGroup) {
+          threePointGroup.rotation.y += 0.002;
+        }
+        if (threeControls) threeControls.update();
+        threeRenderer.render(threeScene, threeCamera);
+      }
+      animateThree();
+      isThreeInitialized = true;
+      selectGalaxyPoint(EMBEDDING_DATASET[0]);
+      return;
+    } catch (err) {
+      console.warn('Three.js initialization failed, switching to 2D Software Fallback', err);
+    }
+  }
+
+  // Fallback 2D Canvas Renderer if WebGL/Three fails
+  initGalaxyCanvasFallback(canvas);
+}
+
+function initGalaxyCanvasFallback(canvas) {
+  const ctx = canvas.getContext('2d');
+  let angle = 0;
+  
+  function renderFallback() {
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = canvas.parentElement.clientHeight;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const scale = 14;
+    
+    if (state.autoRotateGalaxy) angle += 0.005;
+    
+    EMBEDDING_DATASET.forEach(item => {
+      // Rotate around Y axis
+      const rx = item.x * Math.cos(angle) - item.z * Math.sin(angle);
+      const rz = item.x * Math.sin(angle) + item.z * Math.cos(angle);
+      
+      const px = cx + rx * scale;
+      const py = cy - item.y * scale;
+      const size = Math.max(3, 6 + rz * 0.2);
+      
+      ctx.beginPath();
+      ctx.arc(px, py, size, 0, Math.PI * 2);
+      ctx.fillStyle = item.color;
+      ctx.fill();
+      
+      if (state.showGalaxyLabels) {
+        ctx.fillStyle = '#fff';
+        ctx.font = '10px Inter, sans-serif';
+        ctx.fillText(item.word, px + 7, py + 3);
+      }
+    });
+    
+    requestAnimationFrame(renderFallback);
+  }
+  renderFallback();
+  isThreeInitialized = true;
+  selectGalaxyPoint(EMBEDDING_DATASET[0]);
+}
+
+function renderGalaxyClusterPills() {
+  const container = document.getElementById('galaxy-cluster-pills');
+  if (!container) return;
+  const clusters = [...new Set(EMBEDDING_DATASET.map(d => d.cluster))];
+  
+  container.innerHTML = clusters.map(c => {
+    const item = EMBEDDING_DATASET.find(d => d.cluster === c);
+    return `
+      <div class="cluster-pill" onclick="filterGalaxyCluster('${c}')">
+        <span class="cluster-dot" style="background: ${item.color};"></span>
+        <span>${c}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function selectGalaxyPoint(wordData) {
+  state.selectedGalaxyWord = wordData;
+  document.getElementById('galaxy-sel-word').textContent = wordData.word;
+  document.getElementById('galaxy-sel-cluster').textContent = `Cluster: ${wordData.cluster}`;
+  document.getElementById('galaxy-sel-coords').textContent = `X: ${wordData.x.toFixed(2)} | Y: ${wordData.y.toFixed(2)} | Z: ${wordData.z.toFixed(2)}`;
+  
+  // Calculate nearest semantic neighbors using Euclidean / Cosine in 3D
+  const neighbors = EMBEDDING_DATASET
+    .filter(d => d.word !== wordData.word)
+    .map(d => {
+      const dx = d.x - wordData.x;
+      const dy = d.y - wordData.y;
+      const dz = d.z - wordData.z;
+      const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+      const sim = Math.max(0, (1 - (dist / 20))).toFixed(3);
+      return { ...d, dist, sim };
+    })
+    .sort((a, b) => b.sim - a.sim)
+    .slice(0, 5);
+    
+  const list = document.getElementById('galaxy-neighbors-list');
+  list.innerHTML = neighbors.map(n => `
+    <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-hover); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer;" onclick="searchAndFocusWord('${n.word}')">
+      <span style="color: ${n.color}; font-weight: 500;">${n.word}</span>
+      <span style="font-family: var(--font-mono); color: var(--accent-highlight);">${n.sim}</span>
+    </div>
+  `).join('');
+}
+
+function onGalaxySearch(query) {
+  if (!query) return;
+  const match = EMBEDDING_DATASET.find(d => d.word.toLowerCase().includes(query.toLowerCase()));
+  if (match) {
+    selectGalaxyPoint(match);
+  }
+}
+
+function searchAndFocusWord(word) {
+  const match = EMBEDDING_DATASET.find(d => d.word === word);
+  if (match) selectGalaxyPoint(match);
+}
+
+function filterGalaxyCluster(clusterName) {
+  const match = EMBEDDING_DATASET.find(d => d.cluster === clusterName);
+  if (match) selectGalaxyPoint(match);
+  showToast(`Focused Cluster: ${clusterName}`, 'info');
+}
+
+function toggleGalaxyAutoRotate() {
+  state.autoRotateGalaxy = !state.autoRotateGalaxy;
+  document.getElementById('btn-autorotate').textContent = state.autoRotateGalaxy ? 'Pause Rotation' : 'Resume Rotation';
+}
+
+function resetGalaxyCamera() {
+  if (threeCamera) {
+    threeCamera.position.set(0, 15, 30);
+    threeCamera.lookAt(0, 0, 0);
+  }
+}
+
+function toggleGalaxyLabels() {
+  state.showGalaxyLabels = !state.showGalaxyLabels;
+  showToast(state.showGalaxyLabels ? 'Labels Enabled' : 'Labels Hidden', 'info');
+}
+
+function addCustomWordToGalaxy() {
+  const input = document.getElementById('custom-word-input');
+  const word = input.value.trim().toLowerCase();
+  if (!word) return;
+  
+  // Deterministic pseudo 3D coordinates based on hash
+  const h = hashString(word);
+  const x = (h % 18) - 9;
+  const y = ((h >> 4) % 18) - 9;
+  const z = ((h >> 8) % 18) - 9;
+  
+  const custom = { word, cluster: 'Custom', color: '#F43F5E', x, y, z };
+  EMBEDDING_DATASET.push(custom);
+  
+  if (threePointGroup) {
+    const geom = new THREE.SphereGeometry(0.5, 16, 16);
+    const mat = new THREE.MeshStandardMaterial({ color: 0xF43F5E, emissive: 0xF43F5E, emissiveIntensity: 0.5 });
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.position.set(x, y, z);
+    mesh.userData = custom;
+    threePointGroup.add(mesh);
+  }
+  
+  selectGalaxyPoint(custom);
+  input.value = '';
+  showToast(`Plotted "${word}" into 3D Galaxy!`, 'success');
+}
+
+function runAnalogyExperiment(a, b, c, target) {
+  const box = document.getElementById('analogy-result-box');
+  box.innerHTML = `
+    <strong>Executing Vector Arithmetic:</strong><br>
+    Vector(<code>${a}</code>) - Vector(<code>${b}</code>) + Vector(<code>${c}</code>) ≈ 
+    <span style="color: var(--accent-success); font-weight: 700;">Vector(<code>${target}</code>)</span>
+    <br><small style="color: var(--text-muted);">The displacement vector (subtracting male attribute, adding female attribute) shifts the coordinates directly towards the "${target}" cluster node in vector space.</small>
+  `;
+  searchAndFocusWord(target.toLowerCase());
+}
+
+/* ─────────────────────────────────────────────────────────────
+   MODULE 3: VECTOR SPACE & COSINE SIMILARITY
+   ───────────────────────────────────────────────────────────── */
+function drawVectorPlane() {
+  const canvas = document.getElementById('vector-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  
+  canvas.width = canvas.parentElement.clientWidth;
+  canvas.height = canvas.parentElement.clientHeight;
+  
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const radius = Math.min(cx, cy) - 30;
+  
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // Grid circles
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+  ctx.lineWidth = 1;
+  [0.25, 0.5, 0.75, 1.0].forEach(r => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius * r, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+  
+  // Axes
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+  ctx.beginPath();
+  ctx.moveTo(cx, 10); ctx.lineTo(cx, canvas.height - 10);
+  ctx.moveTo(10, cy); ctx.lineTo(canvas.width - 10, cy);
+  ctx.stroke();
+  
+  // Draw angle arc
+  const angleA = Math.atan2(-state.vectorA[1], state.vectorA[0]);
+  const angleB = Math.atan2(-state.vectorB[1], state.vectorB[0]);
+  
+  ctx.beginPath();
+  ctx.arc(cx, cy, 35, Math.min(angleA, angleB), Math.max(angleA, angleB));
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  
+  // Draw Vector A (Primary - Violet)
+  const ax = cx + state.vectorA[0] * radius;
+  const ay = cy - state.vectorA[1] * radius;
+  drawArrow(ctx, cx, cy, ax, ay, '#8B7CFF', 'Vector A');
+  
+  // Draw Vector B (Secondary - Cyan)
+  const bx = cx + state.vectorB[0] * radius;
+  const by = cy - state.vectorB[1] * radius;
+  drawArrow(ctx, cx, cy, bx, by, '#36CFC9', 'Vector B');
+  
+  calculateVectorMetrics();
+}
+
+function drawArrow(ctx, fromX, fromY, toX, toY, color, label) {
+  const headLen = 10;
+  const dx = toX - fromX;
+  const dy = toY - fromY;
+  const angle = Math.atan2(dy, dx);
+  
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 3;
+  
+  // Line
+  ctx.beginPath();
+  ctx.moveTo(fromX, fromY);
+  ctx.lineTo(toX, toY);
+  ctx.stroke();
+  
+  // Arrow head
+  ctx.beginPath();
+  ctx.moveTo(toX, toY);
+  ctx.lineTo(toX - headLen * Math.cos(angle - Math.PI / 6), toY - headLen * Math.sin(angle - Math.PI / 6));
+  ctx.lineTo(toX - headLen * Math.cos(angle + Math.PI / 6), toY - headLen * Math.sin(angle + Math.PI / 6));
+  ctx.closePath();
+  ctx.fill();
+  
+  // Label
+  ctx.font = '11px JetBrains Mono, monospace';
+  ctx.fillText(label, toX + 8, toY - 4);
+}
+
+function calculateVectorMetrics() {
+  const [ax, ay] = state.vectorA;
+  const [bx, by] = state.vectorB;
+  
+  const dot = (ax * bx + ay * by);
+  const magA = Math.sqrt(ax * ax + ay * ay) || 0.0001;
+  const magB = Math.sqrt(bx * bx + by * by) || 0.0001;
+  const cosine = Math.max(-1, Math.min(1, dot / (magA * magB)));
+  const angleDeg = (Math.acos(cosine) * 180 / Math.PI).toFixed(1);
+  const l2 = Math.sqrt((ax - bx)**2 + (ay - by)**2).toFixed(2);
+  
+  document.getElementById('metric-cosine-val').textContent = (cosine >= 0 ? '+' : '') + cosine.toFixed(3);
+  document.getElementById('metric-angle-val').textContent = `Angle: θ = ${angleDeg}°`;
+  document.getElementById('metric-dot-val').textContent = dot.toFixed(3);
+  document.getElementById('metric-l2-val').textContent = l2;
+  
+  document.getElementById('coord-a-text').textContent = `${ax.toFixed(2)}, ${ay.toFixed(2)}`;
+  document.getElementById('coord-b-text').textContent = `${bx.toFixed(2)}, ${by.toFixed(2)}`;
+  
+  // Gauge pointer (ranges from -1 to 1 => 0% to 100%)
+  const gaugePercent = ((cosine + 1) / 2) * 100;
+  document.getElementById('gauge-pointer-needle').style.left = `${gaugePercent}%`;
+  
+  // Badge
+  const badge = document.getElementById('metric-relationship-badge');
+  if (cosine > 0.85) {
+    badge.textContent = 'Highly Related';
+    badge.style.color = 'var(--accent-success)';
+  } else if (cosine > 0.3) {
+    badge.textContent = 'Tangentially Related';
+    badge.style.color = 'var(--accent-warning)';
+  } else if (cosine > -0.3) {
+    badge.textContent = 'Orthogonal / Independent';
+    badge.style.color = 'var(--text-muted)';
+  } else {
+    badge.textContent = 'Opposite Semantics';
+    badge.style.color = 'var(--accent-danger)';
+  }
+}
+
+function setPresetVectors(ax, ay, bx, by) {
+  state.vectorA = [ax, ay];
+  state.vectorB = [bx, by];
+  drawVectorPlane();
+}
+
+// Mouse dragging handles on vector canvas
+(function setupVectorCanvasInteractions() {
+  let isDraggingA = false;
+  let isDraggingB = false;
+  
+  window.addEventListener('load', () => {
+    const canvas = document.getElementById('vector-canvas');
+    if (!canvas) return;
+    
+    canvas.addEventListener('mousedown', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const radius = Math.min(cx, cy) - 30;
+      
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      
+      const ax = cx + state.vectorA[0] * radius;
+      const ay = cy - state.vectorA[1] * radius;
+      const bx = cx + state.vectorB[0] * radius;
+      const by = cy - state.vectorB[1] * radius;
+      
+      if (Math.hypot(mx - ax, my - ay) < 25) isDraggingA = true;
+      else if (Math.hypot(mx - bx, my - by) < 25) isDraggingB = true;
+    });
+    
+    window.addEventListener('mousemove', (e) => {
+      if (!isDraggingA && !isDraggingB) return;
+      const canvas = document.getElementById('vector-canvas');
+      const rect = canvas.getBoundingClientRect();
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const radius = Math.min(cx, cy) - 30;
+      
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      
+      const vx = Math.max(-1, Math.min(1, (mx - cx) / radius));
+      const vy = Math.max(-1, Math.min(1, -(my - cy) / radius));
+      
+      if (isDraggingA) state.vectorA = [vx, vy];
+      if (isDraggingB) state.vectorB = [vx, vy];
+      
+      drawVectorPlane();
+    });
+    
+    window.addEventListener('mouseup', () => {
+      isDraggingA = false;
+      isDraggingB = false;
+    });
+  });
+})();
+
+/* ─────────────────────────────────────────────────────────────
+   MODULE 4: SELF-ATTENTION MECHANISM
+   ───────────────────────────────────────────────────────────── */
+function setAttentionSentence(text) {
+  document.getElementById('attention-sentence-input').value = text;
+  updateAttentionGraph();
+}
+
+function selectAttentionHead(headNum) {
+  state.attentionHead = headNum;
+  for (let i = 1; i <= 4; i++) {
+    const btn = document.getElementById(`btn-head-${i}`);
+    if (btn) btn.classList.toggle('active', i === headNum);
+  }
+  updateAttentionGraph();
+  showToast(`Active: Head ${headNum}`, 'info');
+}
+
+function updateAttentionGraph() {
+  const sentence = document.getElementById('attention-sentence-input').value;
+  const words = sentence.trim().split(/\s+/).filter(Boolean);
+  state.attentionTokens = words;
+  
+  const tokenBar = document.getElementById('attention-tokens-bar');
+  tokenBar.innerHTML = words.map((w, i) => `
+    <span class="token-chip ${state.selectedAttentionTokenIdx === i ? 'selected' : ''}" onclick="selectAttentionToken(${i})">
+      ${escapeHtml(w)}
+    </span>
+  `).join('');
+  
+  drawAttentionCanvas();
+  renderAttentionMatrix();
+}
+
+function selectAttentionToken(idx) {
+  state.selectedAttentionTokenIdx = idx;
+  updateAttentionGraph();
+}
+
+function getAttentionWeight(srcIdx, tgtIdx, head, total) {
+  // Deterministic attention weight simulation based on head specialization
+  if (head === 1) {
+    // Head 1: Syntactic (Attends mostly to adjacent words i-1 and i+1)
+    const diff = Math.abs(srcIdx - tgtIdx);
+    if (diff === 0) return 0.45;
+    if (diff === 1) return 0.35;
+    return 0.20 / (total - 2 || 1);
+  }
+  if (head === 2) {
+    // Head 2: Coreference (Pronoun "it" attending strongly to noun "cat" or "glass")
+    const srcWord = state.attentionTokens[srcIdx]?.toLowerCase().replace(/[^\w]/g, '');
+    const tgtWord = state.attentionTokens[tgtIdx]?.toLowerCase().replace(/[^\w]/g, '');
+    if (srcWord === 'it' && (tgtWord === 'cat' || tgtWord === 'glass' || tgtWord === 'bank')) return 0.72;
+    if (srcWord === 'it' && tgtWord === 'tired') return 0.18;
+    return srcIdx === tgtIdx ? 0.3 : 0.7 / (total || 1);
+  }
+  if (head === 3) {
+    // Head 3: Semantic / Verb-Object
+    const diff = Math.abs(srcIdx - tgtIdx);
+    return Math.exp(-diff * 0.4) / 2.5;
+  }
+  // Head 4: Diffuse uniform
+  return 1 / total;
+}
+
+function drawAttentionCanvas() {
+  const canvas = document.getElementById('attention-graph-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  
+  canvas.width = canvas.parentElement.clientWidth;
+  canvas.height = canvas.parentElement.clientHeight;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  const tokens = state.attentionTokens;
+  const N = tokens.length;
+  if (N === 0) return;
+  
+  const paddingX = 40;
+  const stepX = (canvas.width - paddingX * 2) / (N - 1 || 1);
+  const baselineY = canvas.height - 40;
+  
+  // Draw connecting curves
+  tokens.forEach((src, i) => {
+    tokens.forEach((tgt, j) => {
+      if (state.selectedAttentionTokenIdx !== null && state.selectedAttentionTokenIdx !== i) return;
+      
+      const weight = getAttentionWeight(i, j, state.attentionHead, N);
+      if (weight < 0.05) return;
+      
+      const x1 = paddingX + i * stepX;
+      const x2 = paddingX + j * stepX;
+      const midX = (x1 + x2) / 2;
+      const height = Math.abs(x1 - x2) * 0.45 + 20;
+      const ctrlY = Math.max(20, baselineY - height);
+      
+      ctx.beginPath();
+      ctx.moveTo(x1, baselineY);
+      ctx.quadraticCurveTo(midX, ctrlY, x2, baselineY);
+      ctx.strokeStyle = `rgba(139, 124, 255, ${Math.min(1, weight * 1.5)})`;
+      ctx.lineWidth = Math.max(1, weight * 7);
+      ctx.stroke();
+    });
+  });
+  
+  // Draw Token Nodes on Baseline
+  tokens.forEach((w, i) => {
+    const x = paddingX + i * stepX;
+    const isSelected = state.selectedAttentionTokenIdx === i;
+    
+    ctx.beginPath();
+    ctx.arc(x, baselineY, isSelected ? 6 : 4, 0, Math.PI * 2);
+    ctx.fillStyle = isSelected ? '#36CFC9' : '#8B7CFF';
+    ctx.fill();
+    
+    ctx.font = isSelected ? 'bold 11px Inter, sans-serif' : '10px Inter, sans-serif';
+    ctx.fillStyle = isSelected ? '#fff' : 'rgba(255, 255, 255, 0.7)';
+    ctx.textAlign = 'center';
+    ctx.fillText(w, x, baselineY + 20);
+  });
+}
+
+function renderAttentionMatrix() {
+  const wrapper = document.getElementById('attention-matrix-wrapper');
+  if (!wrapper) return;
+  
+  const tokens = state.attentionTokens;
+  const N = tokens.length;
+  
+  let html = `<div class="matrix-grid" style="grid-template-columns: repeat(${N}, 32px);">`;
+  
+  tokens.forEach((src, i) => {
+    tokens.forEach((tgt, j) => {
+      const weight = getAttentionWeight(i, j, state.attentionHead, N);
+      const alpha = Math.min(1, weight * 1.2);
+      const bg = `rgba(139, 124, 255, ${alpha})`;
+      const textCol = alpha > 0.5 ? '#fff' : 'rgba(255,255,255,0.6)';
+      
+      html += `
+        <div class="matrix-cell" style="background: ${bg}; color: ${textCol};" 
+             title="${src} → ${tgt}: ${(weight * 100).toFixed(1)}%" 
+             onmouseover="inspectAttentionCell('${escapeHtml(src)}', '${escapeHtml(tgt)}', ${weight.toFixed(3)})">
+          ${(weight).toFixed(2).replace('0.', '.')}
+        </div>
+      `;
+    });
+  });
+  
+  html += '</div>';
+  wrapper.innerHTML = html;
+}
+
+function inspectAttentionCell(src, tgt, weight) {
+  const detail = document.getElementById('attention-cell-detail');
+  detail.innerHTML = `
+    <strong>Query:</strong> "${src}" attends to <strong>Key:</strong> "${tgt}" with weight: 
+    <span style="color: var(--accent-highlight); font-weight: 700;">${(weight * 100).toFixed(1)}%</span>
+    (Head ${state.attentionHead})
+  `;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   MODULE 5: TRANSFORMER ARCHITECTURE
+   ───────────────────────────────────────────────────────────── */
+const TRANSFORMER_STAGE_INFO = {
+  1: {
+    title: 'Input Tokenization & Vocabulary Lookup',
+    shape: '[Batch=1, SeqLen=11] → Discrete IDs',
+    formula: 'ids = Tokenizer.encode("...") \\in \\mathbb{Z}^{B \\times T}',
+    desc: 'Raw text is converted into integers corresponding to row indices in the vocabulary. Vocabulary size V ≈ 50,000.'
+  },
+  2: {
+    title: 'Token & Rotary Positional Embedding (RoPE)',
+    shape: '[1, 11] → [1, 11, d_model=4096]',
+    formula: '\\mathbf{X} = \\mathbf{W}_e[ids] \\quad \\text{with} \\quad \\text{RoPE}(x, pos)',
+    desc: 'Each token ID retrieves a 4096-dimensional dense vector. Rotary Position Embedding rotates key and query coordinates to encode relative token order.'
+  },
+  3: {
+    title: 'Pre-Layer Normalization (RMSNorm)',
+    shape: '[1, 11, 4096] → [1, 11, 4096]',
+    formula: '\\text{RMSNorm}(x) = \\frac{x}{\\sqrt{\\frac{1}{d}\\sum_{i=1}^d x_i^2 + \\epsilon}} \\odot \\gamma',
+    desc: 'Root Mean Square Normalization standardizes tensor variance without computing mean, preventing signal explosion in 70B+ parameter models.'
+  },
+  4: {
+    title: 'Multi-Head Causal Self-Attention + Residual Add',
+    shape: '[1, 11, 4096] → [1, 11, 4096]',
+    formula: 'x = x + \\text{Attention}(\\text{RMSNorm}(x))',
+    desc: 'Computes Query, Key, and Value dot products across 32 heads with causal masking. The residual skip-connection guarantees stable gradient flow.'
+  },
+  5: {
+    title: 'SwiGLU Feed-Forward Network (MLP) + Residual Add',
+    shape: '[1, 11, 4096] → [1, 11, 11008] → [1, 11, 4096]',
+    formula: '\\text{SwiGLU}(x) = (x\\mathbf{W}_{gate} \\odot \\text{swish}(x\\mathbf{W}_1))\\mathbf{W}_2',
+    desc: 'Expands the representation dimension by 8/3× (from 4096 to 11008) to store factual associations and non-linear patterns.'
+  },
+  6: {
+    title: 'Final LayerNorm & Language Modeling Head (Unembedding)',
+    shape: '[1, 11, 4096] → [1, 11, Vocab=50257]',
+    formula: '\\mathbf{z} = \\text{RMSNorm}(x)\\mathbf{W}_u^T \\in \\mathbb{R}^{B \\times T \\times V}',
+    desc: 'Projects the 4096-dimensional hidden state back into vocabulary space, producing unnormalized log-probability logits for all 50,000 words.'
+  },
+  7: {
+    title: 'Softmax & Autoregressive Sampling',
+    shape: '[1, Vocab=50257] → Next-Token Integer ID',
+    formula: 'p_i = \\frac{\\exp(z_i / \\tau)}{\\sum_j \\exp(z_j / \\tau)} \\quad \\implies \\quad x_{t+1} \\sim p',
+    desc: 'Applies temperature scaling and softmax to produce a probability distribution. The next token is sampled and appended back to the input prompt!'
+  }
+};
+
+function inspectTransformerNode(stageNum) {
+  state.activeTransformerStage = stageNum;
+  
+  document.querySelectorAll('.transformer-block-node').forEach(n => {
+    n.classList.toggle('active-stage', parseInt(n.dataset.stage) === stageNum);
+  });
+  
+  const info = TRANSFORMER_STAGE_INFO[stageNum];
+  if (!info) return;
+  
+  document.getElementById('trans-inspector-stage-tag').textContent = `STAGE 0${stageNum}`;
+  document.getElementById('trans-comp-title').textContent = info.title;
+  document.getElementById('trans-tensor-shape').textContent = info.shape;
+  document.getElementById('trans-comp-formula').textContent = info.formula;
+  document.getElementById('trans-comp-desc').textContent = info.desc;
+}
+
+function startTransformerForwardPass() {
+  resetTransformerSimulation();
+  let current = 1;
+  inspectTransformerNode(current);
+  
+  state.transformerInterval = setInterval(() => {
+    current++;
+    if (current > 7) {
+      clearInterval(state.transformerInterval);
+      showToast('Forward Pass Complete! Generated next token.', 'success');
+      return;
+    }
+    inspectTransformerNode(current);
+  }, 900);
+}
+
+function resetTransformerSimulation() {
+  if (state.transformerInterval) clearInterval(state.transformerInterval);
+  inspectTransformerNode(1);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   MODULE 6: LLM PLAYGROUND INFERENCE SIMULATOR
+   ───────────────────────────────────────────────────────────── */
+const SIMULATED_COMPLETIONS = [
+  "accelerate breakthrough discoveries across molecular biology, astronomy, and climate modeling at speeds previously thought impossible.",
+  "transform how researchers formulate hypotheses, automate laboratory experiments, and synthesize cross-disciplinary scientific literature.",
+  "enable precision quantum chemistry simulations, drug candidate discovery, and automated mathematical theorem proving."
+];
+
+function setPlaygroundPreset(prompt) {
+  document.getElementById('playground-prompt').value = prompt;
+  document.getElementById('play-prompt-echo').textContent = prompt;
+  document.getElementById('play-generated-text').textContent = '';
+}
+
+function clearPlaygroundPrompt() {
+  document.getElementById('playground-prompt').value = '';
+  document.getElementById('play-prompt-echo').textContent = '';
+  document.getElementById('play-generated-text').textContent = '';
+}
+
+function onTempSliderChange(val) {
+  state.temperature = parseFloat(val);
+  const label = state.temperature === 0 ? '0.00 (Greedy/Argmax)' : (state.temperature < 0.8 ? `${val} (Balanced)` : `${val} (Creative/High Entropy)`);
+  document.getElementById('temp-val').textContent = label;
+}
+
+function onTopPSliderChange(val) {
+  state.topP = parseFloat(val);
+  document.getElementById('topp-val').textContent = parseFloat(val).toFixed(2);
+}
+
+function startPlaygroundGeneration() {
+  if (state.isGenerating) return;
+  
+  const prompt = document.getElementById('playground-prompt').value;
+  document.getElementById('play-prompt-echo').textContent = prompt;
+  const genOutput = document.getElementById('play-generated-text');
+  genOutput.textContent = '';
+  
+  const cursor = document.getElementById('play-cursor');
+  cursor.style.display = 'inline-block';
+  document.getElementById('play-gen-status').textContent = 'Streaming Tokens...';
+  
+  const completionText = SIMULATED_COMPLETIONS[Math.floor(Math.random() * SIMULATED_COMPLETIONS.length)];
+  const tokensToGenerate = completionText.split(' ');
+  
+  let idx = 0;
+  state.isGenerating = true;
+  
+  state.generationInterval = setInterval(() => {
+    if (idx >= tokensToGenerate.length) {
+      stopPlaygroundGeneration();
+      showToast('Inference Complete (Max tokens reached)', 'success');
+      return;
+    }
+    
+    const word = tokensToGenerate[idx];
+    genOutput.textContent += (idx === 0 ? ' ' : ' ') + word;
+    idx++;
+    
+    // Update live top-5 candidate distributions
+    updateTop5Candidates(word);
+  }, 160);
+}
+
+function stopPlaygroundGeneration() {
+  state.isGenerating = false;
+  if (state.generationInterval) clearInterval(state.generationInterval);
+  document.getElementById('play-cursor').style.display = 'none';
+  document.getElementById('play-gen-status').textContent = 'Completed';
+}
+
+function updateTop5Candidates(selectedWord) {
+  const container = document.getElementById('top5-candidates-container');
+  if (!container) return;
+  
+  const vocabPool = ['accelerate', 'transform', 'enable', 'revolutionize', 'enhance', 'catalyze', 'generate'];
+  const candidates = [
+    { word: selectedWord, prob: state.temperature < 0.4 ? 0.78 : (state.temperature > 1.2 ? 0.32 : 0.54) },
+    { word: vocabPool[(hashString(selectedWord) + 1) % vocabPool.length], prob: state.temperature < 0.4 ? 0.12 : 0.22 },
+    { word: vocabPool[(hashString(selectedWord) + 2) % vocabPool.length], prob: state.temperature < 0.4 ? 0.05 : 0.14 },
+    { word: vocabPool[(hashString(selectedWord) + 3) % vocabPool.length], prob: 0.06 },
+    { word: vocabPool[(hashString(selectedWord) + 4) % vocabPool.length], prob: 0.04 }
+  ];
+  
+  container.innerHTML = candidates.map(c => `
+    <div class="top5-row">
+      <div class="top5-token">${c.word}</div>
+      <div class="top5-bar-bg">
+        <div class="top5-bar-fill" style="width: ${(c.prob * 100).toFixed(0)}%;"></div>
+      </div>
+      <div class="top5-prob">${(c.prob * 100).toFixed(0)}%</div>
+    </div>
+  `).join('');
+}
+
+/* ─────────────────────────────────────────────────────────────
+   MODULE 7: WHAT-IF SENTENCE COMPARISON ENGINE
+   ───────────────────────────────────────────────────────────── */
+function loadWhatIfPreset(sentA, sentB, name) {
+  document.getElementById('whatif-input-a').value = sentA;
+  document.getElementById('whatif-input-b').value = sentB;
+  runWhatIfComparison();
+  showToast(`Loaded Preset: ${name}`, 'info');
+}
+
+function runWhatIfComparison() {
+  const sentA = document.getElementById('whatif-input-a').value.trim();
+  const sentB = document.getElementById('whatif-input-b').value.trim();
+  
+  const tokensA = tokenizeSubwords(sentA, 32000);
+  const tokensB = tokenizeSubwords(sentB, 32000);
+  
+  document.getElementById('whatif-a-tokens-count').textContent = `${tokensA.length} Tokens`;
+  document.getElementById('whatif-b-tokens-count').textContent = `${tokensB.length} Tokens`;
+  
+  // Render tokens
+  document.getElementById('whatif-tokens-a').innerHTML = tokensA.map(t => `<span class="token-chip" style="background: rgba(139, 124, 255, 0.2);">${escapeHtml(t.text)}</span>`).join('');
+  document.getElementById('whatif-tokens-b').innerHTML = tokensB.map(t => `<span class="token-chip" style="background: rgba(54, 207, 201, 0.2);">${escapeHtml(t.text)}</span>`).join('');
+  
+  // Diff set
+  const setA = new Set(tokensA.map(t => t.text.toLowerCase()));
+  const setB = new Set(tokensB.map(t => t.text.toLowerCase()));
+  
+  const shared = [...setA].filter(x => setB.has(x));
+  const onlyA = [...setA].filter(x => !setB.has(x));
+  const onlyB = [...setB].filter(x => !setA.has(x));
+  
+  document.getElementById('whatif-shared-tokens').textContent = shared.length ? shared.join(', ') : '(None)';
+  document.getElementById('whatif-removed-tokens').textContent = onlyA.length ? onlyA.join(', ') : '(None)';
+  document.getElementById('whatif-added-tokens').textContent = onlyB.length ? onlyB.join(', ') : '(None)';
+  
+  // Overlap ratio
+  const unionLen = new Set([...setA, ...setB]).size;
+  const overlapPct = unionLen > 0 ? ((shared.length / unionLen) * 100).toFixed(0) : 0;
+  document.getElementById('whatif-overlap-score').textContent = `${overlapPct}%`;
+  document.getElementById('whatif-overlap-detail').textContent = `${shared.length} of ${unionLen} unique tokens shared`;
+  
+  // Semantic score heuristic
+  let sim = 0.5;
+  if (sentA === sentB) sim = 1.0;
+  else if (shared.length > 0) sim = 0.65 + (shared.length / unionLen) * 0.3;
+  else sim = 0.25;
+  
+  // Special heuristics for synonyms
+  if ((sentA.includes('cat') && sentB.includes('kitten')) || (sentA.includes('hot') && sentB.includes('cold'))) {
+    sim = sentA.includes('hot') ? 0.78 : 0.892;
+  }
+  
+  document.getElementById('whatif-cosine-score').textContent = sim.toFixed(3);
+  document.getElementById('whatif-l2-distance').textContent = (Math.sqrt(2 * (1 - sim))).toFixed(2);
+  
+  // Dynamic Natural Language Insight
+  const insight = document.getElementById('whatif-insight-text');
+  if (sim > 0.85) {
+    insight.textContent = `Although these sentences use distinct subword tokens (${onlyA.join('/')} vs ${onlyB.join('/')}), they share deep semantic equivalence. In high-dimensional transformer embedding space, their vector distance is remarkably small (${(Math.sqrt(2 * (1 - sim))).toFixed(2)}).`;
+  } else if (sim > 0.6) {
+    insight.textContent = `These sentences share structural similarities and lexical overlap (${overlapPct}%), but introduce opposing attributes or shifts in context. The model's attention heads will attend to these divergent tokens to separate their representations.`;
+  } else {
+    insight.textContent = `These inputs represent distant semantic clusters with minimal lexical or conceptual commonality. In vector space, they are nearly orthogonal, leading to low cosine similarity (${sim.toFixed(3)}).`;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   MODULE 8: AI GLOSSARY & INTERACTIVE QUIZZES
+   ───────────────────────────────────────────────────────────── */
+const GLOSSARY_TERMS = [
+  { term: 'Byte-Pair Encoding (BPE)', def: 'A data compression algorithm adapted for NLP that iteratively merges frequent character pairs into subwords, eliminating Out-Of-Vocabulary errors.' },
+  { term: 'Embedding Vector', def: 'A continuous, dense numerical array that maps words or tokens into high-dimensional geometric space where proximity denotes semantic similarity.' },
+  { term: 'Cosine Similarity', def: 'The cosine of the angle between two vectors, ranging from -1 to +1. Invariant to vector length, making it the primary distance metric in NLP.' },
+  { term: 'Self-Attention', def: 'A mechanism allowing every token in a sequence to dynamically weigh and aggregate information from all other tokens using Query, Key, and Value projections.' },
+  { term: 'Query, Key, Value (QKV)', def: 'Linear projections of hidden states: Query represents what a token seeks, Key represents what it advertises, and Value carries its contextual content.' },
+  { term: 'Transformer Decoder', def: 'The autoregressive neural architecture powering modern LLMs (GPT, LLaMA), using causal attention masks to predict the next token sequentially.' },
+  { term: 'Temperature (τ)', def: 'A hyperparameter that scales logits prior to softmax. Lower values yield deterministic, greedy outputs; higher values flatten probabilities for creativity.' },
+  { term: 'Top-P (Nucleus Sampling)', def: 'A sampling technique that restricts token selection to the smallest cumulative probability pool exceeding threshold P.' },
+  { term: 'RMSNorm', def: 'Root Mean Square Normalization; standardizes activation variance without subtracting the mean, boosting GPU compute efficiency over LayerNorm.' },
+  { term: 'Residual Connection', def: 'A skip-connection that adds a layer input directly to its output: x = x + F(x). Prevents vanishing gradients across 100+ layer networks.' },
+  { term: 'Rotary Position Embedding (RoPE)', def: 'A positional encoding method that rotates Query and Key representations in complex vector space to encode relative token distance.' }
+];
+
+function filterGlossary(query) {
+  const container = document.getElementById('glossary-items-list');
+  const filtered = GLOSSARY_TERMS.filter(t => 
+    t.term.toLowerCase().includes(query.toLowerCase()) || 
+    t.def.toLowerCase().includes(query.toLowerCase())
+  );
+  
+  container.innerHTML = filtered.map(t => `
+    <div style="background: var(--bg-elevated); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+      <div style="font-weight: 600; font-size: 0.88rem; color: var(--accent-highlight);">${t.term}</div>
+      <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 3px; line-height: 1.5;">${t.def}</p>
+    </div>
+  `).join('');
+}
+
+const QUIZ_QUESTIONS = [
+  {
+    q: 'Why do modern LLMs use subword tokenization (like BPE) instead of whole-word splitting?',
+    options: [
+      'To prevent Out-Of-Vocabulary (OOV) errors while maintaining a manageable vocabulary size',
+      'To make all token vectors identical in length',
+      'To ensure punctuation is completely discarded',
+      'Because subwords require zero GPU memory'
+    ],
+    ans: 0,
+    explain: 'BPE breaks unknown or rare words into familiar subwords, allowing models to process any valid Unicode string with a finite vocabulary (e.g. 50K tokens).'
+  },
+  {
+    q: 'What is the theoretical range of Cosine Similarity between two vectors?',
+    options: ['0.0 to 1.0', '-1.0 to +1.0', '-∞ to +∞', '0 to 100'],
+    ans: 1,
+    explain: 'Cosine similarity is cos(θ), bounded between -1.0 (pointing in opposite directions) and +1.0 (identical direction).'
+  },
+  {
+    q: 'In the Scaled Dot-Product Attention formula, why are Query-Key dot products scaled by 1 / √d_k?',
+    options: [
+      'To invert the attention matrix',
+      'To convert tokens into ASCII numbers',
+      'To prevent large dot products from pushing softmax into regions with vanishing gradients',
+      'To remove the need for Value vectors'
+    ],
+    ans: 2,
+    explain: 'For large vector dimensions d_k, dot products grow large in magnitude, pushing softmax into flat saturation zones with near-zero gradients.'
+  },
+  {
+    q: 'Setting LLM generation Temperature to 0.0 results in:',
+    options: [
+      'Uniform random sampling across all 50,000 tokens',
+      'Greedy argmax selection (the single highest probability token every step)',
+      'An infinite repetition loop error',
+      'Disabling the tokenizer'
+    ],
+    ans: 1,
+    explain: 'As temperature approaches zero, softmax converges to a one-hot distribution choosing the argmax token with 100% certainty.'
+  },
+  {
+    q: 'What purpose do Residual (Skip) Connections serve in Transformer blocks?',
+    options: [
+      'They allow gradients to propagate directly through the network without vanishing',
+      'They decrease the vocabulary size by 50%',
+      'They replace the need for self-attention',
+      'They compress text into MP3 audio'
+    ],
+    ans: 0,
+    explain: 'Residual connections (x + Sublayer(x)) create an uninterrupted highway for backpropagation gradients.'
+  }
+];
+
+function renderQuizQuestion(idx) {
+  const container = document.getElementById('quiz-container');
+  if (!container) return;
+  
+  if (idx >= QUIZ_QUESTIONS.length) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 2rem;">
+        <h3 style="color: var(--accent-success); font-size: 1.3rem;">🎉 Quiz Completed!</h3>
+        <p style="color: var(--text-secondary); margin: 0.5rem 0 1rem;">
+          You scored <strong>${state.quizScore} out of ${QUIZ_QUESTIONS.length}</strong> questions correctly!
+        </p>
+        <button class="btn btn-primary" onclick="restartQuiz()">Restart Quiz</button>
+      </div>
+    `;
+    return;
+  }
+  
+  const q = QUIZ_QUESTIONS[idx];
+  container.innerHTML = `
+    <div style="font-size: 0.75rem; color: var(--accent-primary); font-weight: 700; margin-bottom: 0.35rem;">
+      QUESTION ${idx + 1} OF ${QUIZ_QUESTIONS.length}
+    </div>
+    <h4 style="font-size: 0.95rem; color: var(--text-primary); margin-bottom: 1rem; line-height: 1.5;">
+      ${q.q}
+    </h4>
+    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+      ${q.options.map((opt, i) => `
+        <button class="btn btn-secondary" style="justify-content: flex-start; text-align: left; padding: 0.6rem 0.9rem;" onclick="answerQuizQuestion(${idx}, ${i})">
+          <span style="font-family: var(--font-mono); color: var(--accent-highlight); margin-right: 6px;">${String.fromCharCode(65 + i)}.</span> ${opt}
+        </button>
+      `).join('')}
+    </div>
+    <div id="quiz-feedback-box" style="margin-top: 1rem; display: none;"></div>
+  `;
+}
+
+function answerQuizQuestion(qIdx, selectedOpt) {
+  const q = QUIZ_QUESTIONS[qIdx];
+  const isCorrect = selectedOpt === q.ans;
+  if (isCorrect) state.quizScore++;
+  
+  document.getElementById('quiz-score-badge').textContent = `Score: ${state.quizScore} / ${QUIZ_QUESTIONS.length}`;
+  
+  const feedback = document.getElementById('quiz-feedback-box');
+  feedback.style.display = 'block';
+  feedback.innerHTML = `
+    <div style="background: ${isCorrect ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)'}; border: 1px solid ${isCorrect ? 'var(--accent-success)' : 'var(--accent-danger)'}; padding: 0.75rem; border-radius: var(--radius-sm); font-size: 0.82rem;">
+      <strong>${isCorrect ? '✓ Correct!' : '✗ Incorrect'}</strong> ${q.explain}
+      <div style="margin-top: 0.5rem;">
+        <button class="btn btn-primary btn-sm" onclick="renderQuizQuestion(${qIdx + 1})">Next Question →</button>
+      </div>
+    </div>
+  `;
+}
+
+function restartQuiz() {
+  state.quizScore = 0;
+  state.currentQuizIdx = 0;
+  document.getElementById('quiz-score-badge').textContent = `Score: 0 / ${QUIZ_QUESTIONS.length}`;
+  renderQuizQuestion(0);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   COMMAND SEARCH PALETTE (CMD+K)
+   ───────────────────────────────────────────────────────────── */
+function openSearchModal() {
+  document.getElementById('search-modal').classList.add('open');
+  const input = document.getElementById('cmd-search-input');
+  input.value = '';
+  input.focus();
+  onCommandSearch('');
+}
+
+function closeSearchModal() {
+  document.getElementById('search-modal').classList.remove('open');
+}
+
+function closeSearchModalOnBackdrop(e) {
+  if (e.target.id === 'search-modal') closeSearchModal();
+}
+
+function onCommandSearch(query) {
+  const container = document.getElementById('cmd-search-results');
+  const items = [
+    { title: 'Overview & Pipeline Rail', mod: 'overview', desc: 'System dashboard' },
+    { title: 'Tokenization Lab', mod: 'tokenization', desc: 'BPE subword tokens & vocabulary compression' },
+    { title: '3D Embedding Galaxy', mod: 'embeddings', desc: 'Semantic vectors & King - Man + Woman analogies' },
+    { title: 'Vector Space Explorer', mod: 'vectorspace', desc: '2D coordinate plane & live Cosine Similarity' },
+    { title: 'Self-Attention Visualizer', mod: 'attention', desc: 'Query-Key-Value arcs & matrix heatmaps' },
+    { title: 'Transformer Architecture', mod: 'transformer', desc: 'Decoder-only block & forward-pass simulation' },
+    { title: 'LLM Playground', mod: 'playground', desc: 'Temperature & Top-P streaming token inference' },
+    { title: 'What-If Comparison Engine', mod: 'whatif', desc: 'Side-by-side sentence diffing & semantic insight' },
+    { title: 'AI Terminology Glossary', mod: 'glossary', desc: 'Searchable dictionary of LLM concepts' }
+  ];
+  
+  const filtered = items.filter(it => it.title.toLowerCase().includes(query.toLowerCase()) || it.desc.toLowerCase().includes(query.toLowerCase()));
+  
+  container.innerHTML = filtered.map(it => `
+    <div style="padding: 0.5rem 0.75rem; border-radius: 4px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: var(--bg-elevated);" 
+         onclick="navigateTo('${it.mod}'); closeSearchModal();">
+      <div>
+        <div style="font-weight: 600; font-size: 0.85rem; color: #fff;">${it.title}</div>
+        <div style="font-size: 0.72rem; color: var(--text-muted);">${it.desc}</div>
+      </div>
+      <span class="brand-badge">Jump</span>
+    </div>
+  `).join('');
+}
+
+// Global keybindings (CMD+K / Ctrl+K and ESC)
+window.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    openSearchModal();
+  }
+  if (e.key === 'Escape') {
+    closeSearchModal();
+    closeTokenModal();
+    closeDocModal();
+  }
+});
+
+/* ─────────────────────────────────────────────────────────────
+   DOCUMENTATION MODAL
+   ───────────────────────────────────────────────────────────── */
+function openDocModal() {
+  document.getElementById('doc-modal').classList.add('open');
+}
+function closeDocModal() {
+  document.getElementById('doc-modal').classList.remove('open');
+}
+function closeDocModalOnBackdrop(e) {
+  if (e.target.id === 'doc-modal') closeDocModal();
+}
+
+/* ─────────────────────────────────────────────────────────────
+   HTML ESCAPER HELPER
+   ───────────────────────────────────────────────────────────── */
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/* ─────────────────────────────────────────────────────────────
+   INITIALIZATION
+   ───────────────────────────────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', () => {
+  runTokenizer();
+  drawVectorPlane();
+  updateAttentionGraph();
+  inspectTransformerNode(4);
+  runWhatIfComparison();
+  filterGlossary('');
+  renderQuizQuestion(0);
+  
+  setTimeout(() => {
+    initGalaxyRenderer();
+  }, 200);
+});
 </script>
 </body>
 </html>
-
