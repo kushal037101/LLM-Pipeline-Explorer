@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LLM Pipeline Explorer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Three.js CDN (fallback handled later) -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.min.js"></script>
+<style>
+/* ──────────────────────────────────
+   Global layout & palette
+   ────────────────────────────────── */
+:root{
+  --bg:#080B12;
+  --surface:#101622;
+  --elev:#151D2B;
+  --border:#28303A;
+  --primary:#0FF;   /* electric blue */
+  --secondary:#9B5DE5; /* violet */
+  --highlight:#00F5FF;/* cyan */
+  --text:#E6E6E6;
+  --subtext:#A0A0A0;
+  --radius:6px;
+  --transition:0.2s ease;
+  --font-sans:'Inter','Helvetica','Arial',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;font-family:var(--font-sans);background:var(--bg);color:var(--text);}
+a{color:var(--primary);text-decoration:none;}
+button,select,input,textarea{font:inherit;}
+/* ──────────────────────────────────
+   Layout
+   ────────────────────────────────── */
+#app{display:grid;grid-template-columns:260px 1fr;height:100%;overflow:hidden;}
+#sidebar{
+  background:var(--surface);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+}
+#sidebar .logo{font-size:1.2rem;padding:1rem;color:var(--primary);text-align:center;}
+#sidebar nav{flex:1;overflow-y:auto;}
+#sidebar nav a{
+  display:block;padding:.9rem 1.2rem;
+  color:var(--subtext);
+  border-left:3px solid transparent;
+  transition:var(--transition);
+}
+#sidebar nav a.active{
+  background:var(--elev);
+  color:var(--primary);
+  border-left-color:var(--primary);
+}
+#sidebar nav a:hover{background:rgba(255,255,255,0.05);}
+#sidebar .footer{padding:.5rem 1rem;font-size:.85rem;color:var(--subtext);}
+#main{display:flex;flex-direction:column;}
+#topbar{
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:.6rem 1rem;
+  display:flex;align-items:center;justify-content:space-between;
+}
+#topbar .title{font-size:1.1rem;color:var(--primary);}
+#topbar .right{display:flex;gap:.5rem;align-items:center;}
+#topbar button{background:var(--elev);border:none;color:var(--text);
+  padding:.4rem .8rem;border-radius:var(--radius);
+  cursor:pointer;transition:var(--transition);}
+#topbar button:hover{background:var(--highlight);color:#000;}
+#content{flex:1;overflow:auto;padding:1.2rem;background:var(--bg);}
+section{display:none;}
+section.active{display:block;}
+/* ──────────────────────────────────
+   Cards & panels
+   ────────────────────────────────── */
+.card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:1rem;
+  margin-bottom:1.2rem;
+  box-shadow:0 2px 4px rgba(0,0,0,0.2);
+  transition:var(--transition);
+}
+.card:hover{box-shadow:0 4px 8px rgba(0,0,0,0.4);}
+h2{margin-bottom:.6rem;color:var(--primary);}
+h3{margin:0.6rem 0;color:var(--secondary);}
+button{
+  background:var(--primary);
+  color:#000;
+  border:none;
+  padding:.5rem .9rem;
+  border-radius:var(--radius);
+  cursor:pointer;
+  transition:var(--transition);
+}
+button:hover{background:var(--highlight);}
+textarea{
+  width:100%;height:120px;
+  background:var(--elev);
+  border:1px solid var(--border);
+  color:var(--text);
+  border-radius:var(--radius);
+  padding:.6rem;
+  resize:vertical;
+}
+input[type=range]{width:100%;}
+.token{
+  display:inline-block;
+  background:#28303A;
+  color:#fff;
+  padding:.2rem .5rem;
+  margin:.2rem .2rem;
+  border-radius:3px;
+  cursor:pointer;
+  transition:var(--transition);
+}
+.token:hover{background:var(--secondary);}
+/* Modal */
+#modal{position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;}
+#modal .inner{
+  background:var(--elev);padding:1.5rem;border-radius:var(--radius);
+  max-width:400px;width:90%;color:var(--text);
+}
+#modal .close{background:none;border:none;color:var(--primary);float:right;font-size:1.2rem;cursor:pointer;}
+/* Three.js container */
+#embedCanvas{width:100%;height:400px;background:#000;}
+/* Responsive */
+@media (max-width:800px){
+  #app{grid-template-columns:1fr;}
+  #sidebar{position:fixed;left:-260px;top:0;bottom:0;width:260px;z-index:10;
+    transition:transform var(--transition);}
+  #sidebar.open{transform:translateX(260px);}
+  #topbar .menuBtn{display:block;background:none;color:var(--primary);font-size:1.4rem;}
+}
+@media (min-width:801px){
+  #topbar .menuBtn{display:none;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="logo">🧠 LLM Pipeline Explorer</div>
+    <nav>
+      <a href="#" data-page="overview" class="active">Overview</a>
+      <a href="#" data-page="tokenizer">Tokenizer Lab</a>
+      <a href="#" data-page="embedding">Embedding Galaxy</a>
+      <a href="#" data-page="microscope">Pipeline Microscope</a>
+      <a href="#" data-page="experiments">Experiments</a>
+    </nav>
+    <div class="footer">© 2026</div>
+  </aside>
+
+  <!-- Main area -->
+  <main id="main">
+    <header id="topbar">
+      <button class="menuBtn">☰</button>
+      <div class="title" id="pageTitle">Overview</div>
+      <div class="right">
+        <button id="modeToggle">Engineer Mode</button>
+        <button id="resetBtn">Reset</button>
+      </div>
+    </header>
+
+    <section id="overview" class="active card">
+      <h2>Welcome to the LLM Pipeline Explorer</h2>
+      <p>Explore how text flows through a language‑model pipeline – from raw input to semantic insight.</p>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+        <button data-nav="tokenizer">Tokenizer Lab</button>
+        <button data-nav="embedding">Embedding Galaxy</button>
+        <button data-nav="microscope">Pipeline Microscope</button>
+        <button data-nav="experiments">Experiments</button>
+      </div>
+    </section>
+
+    <!-- Tokenizer Lab -->
+    <section id="tokenizer" class="card">
+      <h2>Tokenizer Lab</h2>
+      <textarea id="tokenInput" placeholder="Enter text…">The quick brown fox jumps over the lazy dog.</textarea>
+      <div style="margin:0.5rem 0;">
+        <button id="sampleTextBtn">Sample Text</button>
+        <button id="clearTokenBtn">Clear</button>
+        <button id="tokenizeBtn">Tokenize</button>
+      </div>
+      <div id="tokenControls" style="margin:0.5rem 0;">
+        <label>Vocabulary size: <span id="vocabSizeVal">1000</span></label>
+        <input type="range" id="vocabSize" min="100" max="2000" step="100" value="1000">
+      </div>
+      <div id="tokenStats" style="margin:0.5rem 0;color:var(--subtext);"></div>
+      <div id="tokenDisplay"></div>
+    </section>
+
+    <!-- Embedding Galaxy -->
+    <section id="embedding" class="card">
+      <h2>Embedding Galaxy</h2>
+      <input type="text" id="embedSearch" placeholder="Search word…" style="width:100%;margin-bottom:.5rem;padding:.4rem;border-radius:var(--radius);border:1px solid var(--border);background:var(--elev);color:var(--text);">
+      <div id="embedCanvas"></div>
+    </section>
+
+    <!-- Pipeline Microscope -->
+    <section id="microscope" class="card">
+      <h2>Pipeline Microscope</h2>
+      <textarea id="pipeInput" placeholder="Enter text…" style="height:80px;">Artificial intelligence revolutionizes many fields.</textarea>
+      <div style="margin:.5rem 0;">
+        <button id="runPipeBtn">Run Pipeline</button>
+        <button id="stepPrevBtn" disabled>Prev</button>
+        <button id="stepNextBtn" disabled>Next</button>
+        <button id="playPipeBtn" disabled>Play</button>
+        <button id="pausePipeBtn" disabled style="display:none;">Pause</button>
+        <button id="resetPipeBtn">Reset</button>
+      </div>
+      <div id="pipelineViz" style="display:flex;gap:1rem;align-items:center;overflow-x:auto;margin:.5rem 0;"></div>
+      <div id="stageInspector" class="card" style="display:none;"></div>
+    </section>
+
+    <!-- Experiments -->
+    <section id="experiments" class="card">
+      <h2>Experiments</h2>
+      <div id="expList"></div>
+    </section>
+  </main>
+</div>
+
+<!-- Modal for token/inspector -->
+<div id="modal"><div class="inner"><button class="close">✖</button><div id="modalContent"></div></div></div>
+
+<script>
+/* ──────────────────────────────────
+   Utility functions
+   ────────────────────────────────── */
+const $ = s=>document.querySelector(s);
+const $$ = s=>[...document.querySelectorAll(s)];
+function clamp(v,min,max){return Math.min(Math.max(v,min),max);}
+
+/* ──────────────────────────────────
+   Global state
+   ────────────────────────────────── */
+let mode = 'engineer'; // or 'beginner'
+let vocabSize = 1000;
+const demoVocab = [...Array(3000).keys()].map(i=>`token${i}`);
+
+/* ──────────────────────────────────
+   Navigation
+   ────────────────────────────────── */
+function setPage(page){
+  $$('#content section').forEach(s=>s.classList.remove('active'));
+  $(`#${page}`).classList.add('active');
+  $('#pageTitle').textContent = document.querySelector(`#sidebar nav a[data-page="${page}"]`).textContent;
+  $$('#sidebar nav a').forEach(a=>a.classList.toggle('active', a.dataset.page===page));
+}
+$$('#sidebar nav a').forEach(a=>a.addEventListener('click',e=>{e.preventDefault(); setPage(a.dataset.page);}));
+$$('[data-nav]').forEach(b=>b.addEventListener('click',()=>setPage(b.dataset.nav)));
+$('#resetBtn').onclick=()=>location.reload();
+$('#modeToggle').onclick=()=>{
+  mode = mode==='engineer'?'beginner':'engineer';
+  $('#modeToggle').textContent = mode==='engineer'?'Beginner Mode':'Engineer Mode';
+  if(currentStage) renderStageInspector(currentStage);
+};
+/* Mobile menu */
+$('#topbar .menuBtn').onclick=()=>$('#sidebar').classList.toggle('open');
+
+/* ──────────────────────────────────
+   Tokenizer Lab
+   ────────────────────────────────── */
+function simpleTokenizer(text){
+  const tokens=[];let id=0;const words=text.trim().split(/\s+/);
+  for(const w of words){
+    if(w.length<=4 || vocabSize>2000){tokens.push({text:w,id:++id,pos:tokens.length});}
+    else{for(let i=0;i<w.length;i+=3){tokens.push({text:w.slice(i,i+3),id:++id,pos:tokens.length});}}
+  }
+  return tokens;
+}
+function updateTokenStats(tokens,text){
+  const chars=text.length, words=text.trim().split(/\s+/).filter(Boolean).length, tcount=tokens.length;
+  const estCost = (tcount/1000).toFixed(3);
+  $('#tokenStats').innerHTML = `
+    Characters: ${chars} | Words: ${words} | Tokens: ${tcount} |
+    Estimated cost: $${estCost}
+  `;
+}
+function renderTokens(tokens){
+  $('#tokenDisplay').innerHTML='';
+  tokens.forEach(tok=>{const el=document.createElement('span');el.className='token';el.textContent=`${tok.text}`;el.title=`ID:${tok.id}`;el.onclick=()=>showTokenModal(tok);$('#tokenDisplay').appendChild(el);});
+}
+function showTokenModal(tok){
+  const cat = /^\d+$/.test(tok.text) ? 'Number' : (/[a-z]/i.test(tok.text)?'Word':'Punctuation');
+  const beginner=`The token “${tok.text}” is a ${cat.toLowerCase()}.`;
+  const engineer=`Token "${tok.text}" (ID ${tok.id}) at position ${tok.pos}, length ${tok.text.length}.`;
+  const content=`
+    <h3>Token Inspector</h3>
+    <p><strong>Text:</strong> ${tok.text}</p>
+    <p><strong>ID:</strong> ${tok.id}</p>
+    <p><strong>Position:</strong> ${tok.pos}</p>
+    <p><strong>Length:</strong> ${tok.text.length}</p>
+    <p><strong>Category:</strong> ${cat}</p>
+    <p><strong>Beginner:</strong> ${beginner}</p>
+    <p><strong>Engineer:</strong> ${engineer}</p>
+    <button onclick="copyToClipboard('${tok.id}')">Copy ID</button>
+  `;
+  $('#modalContent').innerHTML=content;$('#modal').style.display='flex';
+}
+$('#modal .close').onclick=()=>$('#modal').style.display='none';
+function copyToClipboard(txt){navigator.clipboard.writeText(txt);alert('Copied to clipboard');}
+$('#sampleTextBtn').onclick=()=>$('#tokenInput').value='The quick brown fox jumps over the lazy dog.';
+$('#clearTokenBtn').onclick=()=>{$('#tokenInput').value='';$('#tokenDisplay').innerHTML='';$('#tokenStats').innerHTML='';};
+$('#vocabSize').oninput=e=>{vocabSize=+e.target.value;$('#vocabSizeVal').textContent=vocabSize;};
+$('#tokenizeBtn').onclick=()=>{const txt=$('#tokenInput').value;const tokens=simpleTokenizer(txt);renderTokens(tokens);updateTokenStats(tokens,txt);};
+
+/* ──────────────────────────────────
+   Embedding Galaxy (Three.js)
+   ────────────────────────────────── */
+let threeRenderer, threeScene, threeCamera, pointGroup;
+const demoClusters = {
+  Animals:['cat','dog','lion','tiger','elephant'],
+  Technology:['computer','server','network','algorithm','robot'],
+  Programming:['function','variable','object','class','async'],
+  Emotions:['happy','sad','angry','joy','fear'],
+  Food:['pizza','sushi','apple','bread','cheese'],
+  Science:['atom','planet','gravity','evolution','quantum']
+};
+function initThree(){
+  const canvas = $('#embedCanvas');
+  threeRenderer = new THREE.WebGLRenderer({canvas, antialias:true});
+  threeRenderer.setSize(canvas.clientWidth, canvas.clientHeight);
+  threeScene = new THREE.Scene();
+  threeCamera = new THREE.PerspectiveCamera(45, canvas.clientWidth/canvas.clientHeight, 0.1, 1000);
+  threeCamera.position.z = 30;
+  const light = new THREE.DirectionalLight(0xffffff,0.8);
+  light.position.set(0,20,10);
+  threeScene.add(light);
+  pointGroup = new THREE.Group();
+  threeScene.add(pointGroup);
+  let idx=0;
+  for(const [cluster, words] of Object.entries(demoClusters)){
+    const color = new THREE.Color(`hsl(${(idx*60)%360},70%,60%)`);
+    words.forEach((w,i)=>{
+      const phi = Math.random()*Math.PI*2;
+      const theta = Math.random()*Math.PI;
+      const radius = 8 + Math.random()*2;
+      const x = radius*Math.sin(theta)*Math.cos(phi);
+      const y = radius*Math.sin(theta)*Math.sin(phi);
+      const z = radius*Math.cos(theta);
+      const geom = new THREE.SphereGeometry(0.4,8,8);
+      const mat = new THREE.MeshStandardMaterial({color});
+      const sphere = new THREE.Mesh(geom,mat);
+      sphere.position.set(x,y,z);
+      sphere.userData={word:w,cluster};
+      pointGroup.add(sphere);
+    });
+    idx++;
+  }
+  const controls = new THREE.OrbitControls(threeCamera, canvas);
+  controls.enableDamping=true;
+  animateThree();
+}
+function animateThree(){
+  requestAnimationFrame(animateThree);
+  pointGroup.rotation.y+=0.001;
+  threeRenderer.render(threeScene,threeCamera);
+}
+function searchEmbedding(word){
+  pointGroup.children.forEach(p=>p.material.emissive.setHex(0x000000));
+  const target = pointGroup.children.find(p=>p.userData.word===word);
+  if(target){target.material.emissive.setHex(0x555555);
+    const pos = target.position.clone().multiplyScalar(2);
+    threeCamera.position.lerp(pos,0.1);
+    threeCamera.lookAt(target.position);
+  }
+}
+$('#embedSearch').oninput=e=>searchEmbedding(e.target.value.trim().toLowerCase());
+if (THREE) initThree();
+
+/* ──────────────────────────────────
+   Pipeline Microscope
+   ────────────────────────────────── */
+let pipelineSteps = ['input','tokenizer','embedding','semantic','insight'];
+let currentStepIndex = -1;
+let currentStage = null;
+let playInterval = null;
+function resetPipeline(){
+  currentStepIndex=-1;$('#pipelineViz').innerHTML='';$('#stageInspector').style.display='none';
+  $('#stepPrevBtn').disabled=true;$('#stepNextBtn').disabled=true;$('#playPipeBtn').disabled=true;
+}
+function runPipeline(){
+  resetPipeline();
+  const text = $('#pipeInput').value.trim();
+  if(!text){alert('Enter some text');return;}
+  addNode('input','Input',text);
+  const tokens = simpleTokenizer(text);
+  addNode('tokenizer','Tokenizer',tokens.map(t=>t.text).join(' '));
+  const vec = demoVector(text);
+  addNode('embedding','Embedding',`[${vec.slice(0,5).join(',')} …]`);
+  const sim = computeSimilarity(vec);
+  addNode('semantic','Semantic',`Top match: ${sim.word} (${(sim.score*100).toFixed(1)}%)`);
+  addNode('insight','Insight',generateInsight(text, tokens, vec));
+  $('#stepNextBtn').disabled=false;$('#playPipeBtn').disabled=false;
+}
+function addNode(id,title,preview){
+  const node=document.createElement('div');
+  node.style.padding='0.6rem 1rem';
+  node.style.background='var(--elev)';
+  node.style.borderRadius='var(--radius)';
+  node.style.minWidth='120px';
+  node.style.cursor='pointer';
+  node.dataset.step=id;
+  node.innerHTML=`<strong>${title}</strong><br><small>${preview.slice(0,30)}${preview.length>30?'…':''}</small>`;
+  node.onclick=()=>showStage(id);
+  $('#pipelineViz').appendChild(node);
+}
+function showStage(stepId){
+  const idx = pipelineSteps.indexOf(stepId);
+  currentStage = stepId;
+  $$('#pipelineViz div').forEach(d=>d.style.border = (d.dataset.step===stepId)?'2px solid var(--primary)':'none');
+  renderStageInspector(stepId);
+}
+function renderStageInspector(stepId){
+  const inspector = $('#stageInspector');
+  inspector.style.display='block';
+  const txt = $('#pipeInput').value.trim();
+  const tokens = simpleTokenizer(txt);
+  const vec = demoVector(txt);
+  const sim = computeSimilarity(vec);
+  let html='';
+  if(stepId==='input'){
+    html=`<h3>Input</h3><p><strong>Text:</strong> ${txt}</p><p>Characters: ${txt.length} | Words: ${txt.split(/\s+/).length}</p>`;
+  }else if(stepId==='tokenizer'){
+    html=`<h3>Tokenizer</h3><p>Tokens (${tokens.length}): ${tokens.map(t=>t.text).join(' ')}</p>`;
+  }else if(stepId==='embedding'){
+    html=`<h3>Embedding</h3><p>Vector (first 5 values): ${vec.slice(0,5).map(v=>v.toFixed(2)).join(', ')}</p>`;
+  }else if(stepId==='semantic'){
+    html=`<h3>Semantic Analysis</h3><p>Closest demo word: <strong>${sim.word}</strong> (${(sim.score*100).toFixed(1)}% similarity)</p>`;
+  }else if(stepId==='insight'){
+    html=`<h3>Insight</h3><p>${generateInsight(txt,tokens,vec)}</p>`;
+  }
+  const beg=`<p><em>Beginner:</em> ${beginnerExplain(stepId,txt,tokens,vec,sim)}</p>`;
+  const eng=`<p><em>Engineer:</em> ${engineerExplain(stepId,txt,tokens,vec,sim)}</p>`;
+  inspector.innerHTML = html + (mode==='beginner'?beg:eng);
+}
+function beginnerExplain(step,txt,toks,vec,sim){
+  const map = {
+    input:'You typed a sentence. The app counts characters and words.',
+    tokenizer:'The sentence is broken into smaller pieces (tokens) that the model understands.',
+    embedding:'Each token becomes a list of numbers (aa vector) that captures its meaning.',
+    semantic:`The app looks for the word whose meaning is most similar to the whole sentence.`,
+    insight:'A short human‑readable summary explains what the model “sees”.'
+  };return map[step];
+}
+function engineerExplain(step,txt,toks,vec,sim){
+  const map = {
+    input:`Length=${txt.length}, Words=${txt.split(/\s+/).length}`,
+    tokenizer:`Token count=${toks.length}, IDs=[${toks.map(t=>t.id).join(',')}]`,
+    embedding:`Vector dim=8, values≈[${vec.map(v=>v.toFixed(2)).join(', ')}]`,
+    semantic:`Cosine similarity with demo word “${sim.word}” = ${sim.score.toFixed(3)}`,
+    insight:`Generated explanation based on token‑level transformations.`
+  };return map[step];
+}
+function demoVector(text){
+  const base = Array(8).fill(0);
+  for(let i=0;i<text.length;i++) base[i%8] += text.charCodeAt(i);
+  return base.map(v=>v/100);
+}
+function cosine(a,b){let dot=0,na=0,nb=0;for(let i=0;i<a.length;i++){dot+=a[i]*b[i];na+=a[i]*a[i];nb+=b[i]*b[i];}return dot/Math.sqrt(na*nb);}
+function computeSimilarity(vec){
+  const demoWords = {cat:[0.5,0.3,0.1,0.2,0.4,0.1,0.0,0.2],dog:[0.4,0.2,0.2,0.3,0.5,0.0,0.1,0.1],computer:[0.2,0.6,0.4,0.1,0.3,0.2,0.5,0.3],happy:[0.5,0.5,0.1,0.4,0.2,0.3,0.2,0.1]};
+  let best={word:'unknown',score:0};
+  for(const [w,v] of Object.entries(demoWords)){
+    const s=cosine(vec,v);
+    if(s>best.score) best={word:w,score:s};
+  }
+  return best;
+}
+function generateInsight(txt,toks,vec){return `The sentence contains ${toks.length} tokens; its embedding is a compact numeric representation. Similarity to known concepts suggests it is about “${computeSimilarity(vec).word}”.`;}
+$('#runPipeBtn').onclick=runPipeline;
+$('#stepPrevBtn').onclick=()=>{ if(currentStepIndex>0) showStage(pipelineSteps[--currentStepIndex]); };
+$('#stepNextBtn').onclick=()=>{ if(currentStepIndex<pipelineSteps.length-1) showStage(pipelineSteps[++currentStepIndex]); };
+$('#playPipeBtn').onclick=()=>{
+  $('#playPipeBtn').style.display='none';$('#pausePipeBtn').style.display='inline-block';
+  playInterval=setInterval(()=>{
+    if(currentStepIndex<pipelineSteps.length-1){showStage(pipelineSteps[++currentStepIndex]);}
+    else{clearInterval(playInterval);$('#playPipeBtn').style.display='inline-block';$('#pausePipeBtn').style.display='none';}
+  },800);
+};
+$('#pausePipeBtn').onclick=()=>{clearInterval(playInterval);$('#playPipeBtn').style.display='inline-block';$('#pausePipeBtn').style.display='none';};
+$('#resetPipeBtn').onclick=resetPipeline;
+
+/* ──────────────────────────────────
+   Experiments
+   ────────────────────────────────── */
+const experiments = [
+  {title:'Synonyms',desc:'Compare similar words.',a:'fast',b:'quick'},
+  {title:'Meaning Shift',desc:'Change one word.',a:'The sky is blue.',b:'The sky is gray.'},
+  {title:'Opposites',desc:'Opposite concepts.',a:'hot',b:'cold'},
+  {title:'Token Explosion',desc:'Long / weird token.',a:'supercalifragilisticexpialidocious',b:'pneumonoultramicroscopicsilicovolcanoconiosis'},
+  {title:'Sentence Length',desc:'Short vs long.',a:'Hi.',b:'In the midst of the bustling city, a lone traveler contemplated the meaning of existence.'},
+  {title:'Semantic Distance',desc:'Unrelated sentences.',a:'Quantum physics',b:'Baking a cake'}
+];
+function loadExperiments(){
+  const list = $('#expList');
+  experiments.forEach((exp,i)=>{const card=document.createElement('div');card.className='card';card.innerHTML=`<h3>${exp.title}</h3><p>${exp.desc}</p><button data-idx="${i}">Load</button>`;list.appendChild(card);});
+  $$('#expList button').forEach(b=>b.addEventListener('click',e=>{const idx=e.target.dataset.idx;const exp=experiments[idx];$('#pipeInput').value=exp.a;window._expB = exp.b;alert('Loaded experiment. Click “Run Pipeline” then “Compare Pipelines” (appears after first run).');}));
+}
+loadExperiments();
+
+/* ──────────────────────────────────
+   What‑If Engine (within Microscope)
+   ────────────────────────────────── */
+let compareData=null;
+function createCompareControls(){
+  const ctrl=document.createElement('div');
+  ctrl.style.margin='0.5rem 0';
+  ctrl.innerHTML=`<textarea id="compareB" placeholder="Sentence B…" style="height:80px;margin-top:0.5rem;"></textarea>
+    <button id="compareBtn">Compare Pipelines</button>
+    <div id="compareResult" style="margin-top:0.8rem;"></div>`;
+  $('#microscope').appendChild(ctrl);
+  $('#compareBtn').onclick=runComparison;
+}
+function runComparison(){
+  const a = $('#pipeInput').value.trim();
+  const b = $('#compareB').value.trim() || window._expB || '';
+  if(!a||!b){alert('Both sentences required');return;}
+  const ta = simpleTokenizer(a);
+  const tb = simpleTokenizer(b);
+  const va = demoVector(a);
+  const vb = demoVector(b);
+  const sim = cosine(va,vb);
+  const setA = new Set(ta.map(t=>t.text));
+  const setB = new Set(tb.map(t=>t.text));
+  const added=[...setB].filter(x=>!setA.has(x));
+  const removed=[...setA].filter(x=>!setB.has(x));
+  const shared=[...setA].filter(x=>setB.has(x));
+  const html = `<h3>Comparison Result</h3>
+    <p><strong>Shared tokens (${shared.length}):</strong> ${shared.join(', ')}</p>
+    <p><strong>Added in B (${added.length}):</strong> ${added.join(', ')}</p>
+    <p><strong>Removed from A (${removed.length}):</strong> ${removed.join(', ')}</p>
+    <p><strong>Token count diff:</strong> ${ta.length} vs ${tb.length}</p>
+    <p><strong>Estimated demo similarity:</strong> ${(sim*100).toFixed(1)}%</p>`;
+  $('#compareResult').innerHTML=html;
+}
+createCompareControls();
+
+/* ──────────────────────────────────
+   Initialisation
+   ────────────────────────────────── */
+resetPipeline();
+</script>
+</body>
+</html>
+
